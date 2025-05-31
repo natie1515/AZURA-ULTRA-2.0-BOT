@@ -33,13 +33,12 @@ const handler = async (msg, { conn, text, command }) => {
 
     const videoUrl = results[0].url;
 
-    // Asegurar que la carpeta ./tmp exista
     const tmpDir = path.resolve('./tmp');
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
 
     const filePath = path.join(tmpDir, `fb-${Date.now()}.mp4`);
 
-    // Descargar y guardar en archivo
+    // Descargar y guardar el archivo
     const videoRes = await axios.get(videoUrl, { responseType: "stream" });
     const writer = fs.createWriteStream(filePath);
 
@@ -49,10 +48,16 @@ const handler = async (msg, { conn, text, command }) => {
       writer.on("error", reject);
     });
 
-    // Verificar peso del archivo
+    // Verificamos que existe antes de continuar
+    if (!fs.existsSync(filePath)) {
+      return await conn.sendMessage(chatId, {
+        text: "❌ El archivo no se guardó correctamente. Intenta nuevamente."
+      }, { quoted: msg });
+    }
+
+    // Validar tamaño
     const stats = fs.statSync(filePath);
     const sizeMB = stats.size / (1024 * 1024);
-
     if (sizeMB > 500) {
       fs.unlinkSync(filePath);
       return await conn.sendMessage(chatId, {
@@ -60,6 +65,7 @@ const handler = async (msg, { conn, text, command }) => {
       }, { quoted: msg });
     }
 
+    // Enviar el archivo guardado
     const caption = `📄 *Resoluciones disponibles:*\n${results.map(r => `- ${r.resolution}`).join('\n')}\n\n📥 *Video descargado como documento (720p)*\n🍧 *API:* api.dorratz.com\n\n───────\n© Azura Ultra & Cortana`;
 
     await conn.sendMessage(chatId, {
@@ -69,7 +75,7 @@ const handler = async (msg, { conn, text, command }) => {
       caption
     }, { quoted: msg });
 
-    fs.unlinkSync(filePath); // eliminar archivo temporal
+    fs.unlinkSync(filePath);
     await conn.sendMessage(chatId, {
       react: { text: "✅", key: msg.key }
     });
@@ -77,7 +83,7 @@ const handler = async (msg, { conn, text, command }) => {
   } catch (err) {
     console.error("❌ Error en fbdoc:", err);
     await conn.sendMessage(chatId, {
-      text: "❌ Ocurrió un error al procesar el enlace de Facebook."
+      text: "❌ Ocurrió un error al procesar o enviar el video."
     }, { quoted: msg });
   }
 };
