@@ -1,9 +1,6 @@
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
-const { promisify } = require('util');
-const stream = require('stream');
-const finished = promisify(stream.finished);
+const axios = require("axios");
+const fs = require("fs");
+const path = require("path");
 
 const handler = async (msg, { conn, text, command }) => {
   const chatId = msg.key.remoteJid;
@@ -28,7 +25,7 @@ const handler = async (msg, { conn, text, command }) => {
     const res = await axios.get(`https://api.dorratz.com/fbvideo?url=${encodeURIComponent(text)}`);
     const results = res.data;
 
-    if (!results || results.length === 0) {
+    if (!results || results.length === 0 || !results[0].url) {
       return await conn.sendMessage(chatId, {
         text: "❌ No se pudo obtener el video."
       }, { quoted: msg });
@@ -36,28 +33,30 @@ const handler = async (msg, { conn, text, command }) => {
 
     const videoUrl = results[0].url;
 
-    // ✅ Asegurarse que existe carpeta ./tmp
-    const tmpDir = path.join(__dirname, 'tmp');
-    if (!fs.existsSync(tmpDir)) {
-      fs.mkdirSync(tmpDir, { recursive: true });
-    }
+    // Asegurar que la carpeta ./tmp exista
+    const tmpDir = path.resolve('./tmp');
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
 
-    const fileName = `fb_video_${Date.now()}.mp4`;
-    const filePath = path.join(tmpDir, fileName);
+    const filePath = path.join(tmpDir, `fb-${Date.now()}.mp4`);
 
+    // Descargar y guardar en archivo
+    const videoRes = await axios.get(videoUrl, { responseType: "stream" });
     const writer = fs.createWriteStream(filePath);
-    const response = await axios.get(videoUrl, { responseType: 'stream' });
-    response.data.pipe(writer);
-    await finished(writer);
 
-    // Validar peso en MB
+    await new Promise((resolve, reject) => {
+      videoRes.data.pipe(writer);
+      writer.on("finish", resolve);
+      writer.on("error", reject);
+    });
+
+    // Verificar peso del archivo
     const stats = fs.statSync(filePath);
-    const fileSizeMB = stats.size / (1024 * 1024); // Convertir a MB
+    const sizeMB = stats.size / (1024 * 1024);
 
-    if (fileSizeMB > 500) {
-      fs.unlinkSync(filePath); // borrar para liberar espacio
+    if (sizeMB > 500) {
+      fs.unlinkSync(filePath);
       return await conn.sendMessage(chatId, {
-        text: `❌ *El archivo pesa ${fileSizeMB.toFixed(2)}MB y excede el límite de 500MB.*`
+        text: `❌ *El archivo pesa ${sizeMB.toFixed(2)}MB y excede el límite de 500MB.*`
       }, { quoted: msg });
     }
 
@@ -65,15 +64,14 @@ const handler = async (msg, { conn, text, command }) => {
 
     await conn.sendMessage(chatId, {
       document: fs.readFileSync(filePath),
-      mimetype: 'video/mp4',
-      fileName: 'facebook_video.mp4',
+      mimetype: "video/mp4",
+      fileName: "facebook_video.mp4",
       caption
     }, { quoted: msg });
 
-    fs.unlinkSync(filePath); // limpiar después de enviar
-
+    fs.unlinkSync(filePath); // eliminar archivo temporal
     await conn.sendMessage(chatId, {
-      react: { text: '✅', key: msg.key }
+      react: { text: "✅", key: msg.key }
     });
 
   } catch (err) {
