@@ -1058,120 +1058,6 @@ try {
   console.error("❌ Error en contador de mensajes:", error);
 }
 // === FIN CONTADOR DE MENSAJES POR GRUPO ===
-// === INICIO BLOQUEO DE MENSAJES DE USUARIOS MUTEADOS ===
-try {
-  const chatId = msg.key.remoteJid;
-  const isGroup = chatId.endsWith("@g.us");
-
-  if (isGroup) {
-    const senderId = msg.key.participant || msg.key.remoteJid;
-    const mutePath = "./mute.json";
-    const muteData = fs.existsSync(mutePath) ? JSON.parse(fs.readFileSync(mutePath)) : {};
-    const muteList = muteData[chatId] || [];
-
-    if (muteList.includes(senderId)) {
-      global._muteCounter = global._muteCounter || {};
-      const key = `${chatId}:${senderId}`;
-      global._muteCounter[key] = (global._muteCounter[key] || 0) + 1;
-
-      const count = global._muteCounter[key];
-
-      if (count === 8) {
-        await sock.sendMessage(chatId, {
-          text: `⚠️ @${senderId.split("@")[0]} estás muteado.\nSigue enviando mensajes y podrías ser eliminado.`,
-          mentions: [senderId]
-        });
-      }
-
-      if (count === 13) {
-        await sock.sendMessage(chatId, {
-          text: `⛔ @${senderId.split("@")[0]} estás al límite.\nSi envías *otro mensaje*, serás eliminado del grupo.`,
-          mentions: [senderId]
-        });
-      }
-
-      if (count >= 15) {
-        const metadata = await sock.groupMetadata(chatId);
-        const user = metadata.participants.find(p => p.id === senderId);
-        const isAdmin = user?.admin === 'admin' || user?.admin === 'superadmin';
-
-        if (!isAdmin) {
-          await sock.groupParticipantsUpdate(chatId, [senderId], "remove");
-          await sock.sendMessage(chatId, {
-            text: `❌ @${senderId.split("@")[0]} fue eliminado por ignorar el mute.`,
-            mentions: [senderId]
-          });
-          delete global._muteCounter[key];
-        } else {
-          await sock.sendMessage(chatId, {
-            text: `🔇 @${senderId.split("@")[0]} es administrador y no se puede eliminar.`,
-            mentions: [senderId]
-          });
-        }
-      }
-
-      // eliminar mensaje
-      await sock.sendMessage(chatId, {
-        delete: {
-          remoteJid: chatId,
-          fromMe: false,
-          id: msg.key.id,
-          participant: senderId
-        }
-      });
-
-      return; // este return es interno, no afecta el resto
-    }
-  }
-} catch (err) {
-  console.error("❌ Error en lógica de muteo:", err);
-}
-// === FIN BLOQUEO DE MENSAJES DE USUARIOS MUTEADOS ===
-    
-// === INICIO BLOQUEO DE COMANDOS A USUARIOS BANEADOS ===
-try {
-  const banPath = path.resolve("./ban.json");
-  const banData = fs.existsSync(banPath) ? JSON.parse(fs.readFileSync(banPath)) : {};
-
-  const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
-  if (!messageText.startsWith(global.prefix)) return;
-
-  const commandOnly = messageText.slice(global.prefix.length).trim().split(" ")[0].toLowerCase();
-
-  const senderId = msg.key.participant || msg.key.remoteJid;
-  const senderClean = senderId.replace(/[^0-9]/g, "");
-  const senderLID = senderId; // ejemplo: 123456789012345@lid
-  const senderClassic = `${senderClean}@s.whatsapp.net`; // ejemplo: 521234567890@...
-
-  const isFromMe = msg.key.fromMe;
-  const isOwner = global.owner.some(([id]) => id === senderClean);
-
-  const groupBanList = banData[chatId] || [];
-
-  if ((groupBanList.includes(senderClassic) || groupBanList.includes(senderLID)) && !isOwner && !isFromMe) {
-    const frases = [
-      "🚫 @usuario estás baneado por pendejo. ¡Abusaste demasiado del bot!",
-      "❌ Lo siento @usuario, pero tú ya no puedes usarme. Aprende a comportarte.",
-      "🔒 No tienes permiso @usuario. Fuiste baneado por molestar mucho.",
-      "👎 ¡Bloqueado! @usuario abusaste del sistema y ahora no puedes usarme.",
-      "😤 Quisiste usarme pero estás baneado, @usuario. Vuelve en otra vida."
-    ];
-
-    const texto = frases[Math.floor(Math.random() * frases.length)].replace("@usuario", `@${senderClean}`);
-
-    await sock.sendMessage(chatId, {
-      text: texto,
-      mentions: [senderId]
-    }, { quoted: msg });
-
-    return;
-  }
-} catch (e) {
-  console.error("❌ Error procesando bloqueo de usuarios baneados:", e);
-}
-// === FIN BLOQUEO DE COMANDOS A USUARIOS BANEADOS ===
-    
-
   // 🔐 Modo Privado activado
     if (activos.modoPrivado) {
       if (isGroup) {
@@ -1427,7 +1313,118 @@ try {
   console.error("❌ Error procesando comando restringido:", e);
 }
 // === FIN LÓGICA DE COMANDOS RESTRINGIDOS ===    
-    
+// === INICIO BLOQUEO DE COMANDOS A USUARIOS BANEADOS ===
+try {
+  const banPath = path.resolve("./ban.json");
+  const banData = fs.existsSync(banPath) ? JSON.parse(fs.readFileSync(banPath)) : {};
+
+  const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
+  if (!messageText.startsWith(global.prefix)) return;
+
+  const commandOnly = messageText.slice(global.prefix.length).trim().split(" ")[0].toLowerCase();
+
+  const senderId = msg.key.participant || msg.key.remoteJid;
+  const senderClean = senderId.replace(/[^0-9]/g, "");
+  const senderLID = senderId; // ejemplo: 123456789012345@lid
+  const senderClassic = `${senderClean}@s.whatsapp.net`; // ejemplo: 521234567890@...
+
+  const isFromMe = msg.key.fromMe;
+  const isOwner = global.owner.some(([id]) => id === senderClean);
+
+  const groupBanList = banData[chatId] || [];
+
+  if ((groupBanList.includes(senderClassic) || groupBanList.includes(senderLID)) && !isOwner && !isFromMe) {
+    const frases = [
+      "🚫 @usuario estás baneado por pendejo. ¡Abusaste demasiado del bot!",
+      "❌ Lo siento @usuario, pero tú ya no puedes usarme. Aprende a comportarte.",
+      "🔒 No tienes permiso @usuario. Fuiste baneado por molestar mucho.",
+      "👎 ¡Bloqueado! @usuario abusaste del sistema y ahora no puedes usarme.",
+      "😤 Quisiste usarme pero estás baneado, @usuario. Vuelve en otra vida."
+    ];
+
+    const texto = frases[Math.floor(Math.random() * frases.length)].replace("@usuario", `@${senderClean}`);
+
+    await sock.sendMessage(chatId, {
+      text: texto,
+      mentions: [senderId]
+    }, { quoted: msg });
+
+    return;
+  }
+} catch (e) {
+  console.error("❌ Error procesando bloqueo de usuarios baneados:", e);
+}
+// === FIN BLOQUEO DE COMANDOS A USUARIOS BANEADOS ===    
+// === INICIO BLOQUEO DE MENSAJES DE USUARIOS MUTEADOS ===
+try {
+  const chatId = msg.key.remoteJid;
+  const isGroup = chatId.endsWith("@g.us");
+
+  if (isGroup) {
+    const senderId = msg.key.participant || msg.key.remoteJid;
+    const mutePath = "./mute.json";
+    const muteData = fs.existsSync(mutePath) ? JSON.parse(fs.readFileSync(mutePath)) : {};
+    const muteList = muteData[chatId] || [];
+
+    if (muteList.includes(senderId)) {
+      global._muteCounter = global._muteCounter || {};
+      const key = `${chatId}:${senderId}`;
+      global._muteCounter[key] = (global._muteCounter[key] || 0) + 1;
+
+      const count = global._muteCounter[key];
+
+      if (count === 8) {
+        await sock.sendMessage(chatId, {
+          text: `⚠️ @${senderId.split("@")[0]} estás muteado.\nSigue enviando mensajes y podrías ser eliminado.`,
+          mentions: [senderId]
+        });
+      }
+
+      if (count === 13) {
+        await sock.sendMessage(chatId, {
+          text: `⛔ @${senderId.split("@")[0]} estás al límite.\nSi envías *otro mensaje*, serás eliminado del grupo.`,
+          mentions: [senderId]
+        });
+      }
+
+      if (count >= 15) {
+        const metadata = await sock.groupMetadata(chatId);
+        const user = metadata.participants.find(p => p.id === senderId);
+        const isAdmin = user?.admin === 'admin' || user?.admin === 'superadmin';
+
+        if (!isAdmin) {
+          await sock.groupParticipantsUpdate(chatId, [senderId], "remove");
+          await sock.sendMessage(chatId, {
+            text: `❌ @${senderId.split("@")[0]} fue eliminado por ignorar el mute.`,
+            mentions: [senderId]
+          });
+          delete global._muteCounter[key];
+        } else {
+          await sock.sendMessage(chatId, {
+            text: `🔇 @${senderId.split("@")[0]} es administrador y no se puede eliminar.`,
+            mentions: [senderId]
+          });
+        }
+      }
+
+      // eliminar mensaje
+      await sock.sendMessage(chatId, {
+        delete: {
+          remoteJid: chatId,
+          fromMe: false,
+          id: msg.key.id,
+          participant: senderId
+        }
+      });
+
+      return; // este return es interno, no afecta el resto
+    }
+  }
+} catch (err) {
+  console.error("❌ Error en lógica de muteo:", err);
+}
+// === FIN BLOQUEO DE MENSAJES DE USUARIOS MUTEADOS ===
+
     // ✅ Procesar comando
     if (messageText.startsWith(global.prefix)) {
       const command = messageText.slice(global.prefix.length).trim().split(" ")[0];
