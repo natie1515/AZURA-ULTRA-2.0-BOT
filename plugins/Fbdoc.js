@@ -1,6 +1,9 @@
-const axios = require("axios");
-const fs = require("fs");
-const path = require("path");
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const { promisify } = require('util');
+const stream = require('stream');
+const finished = promisify(stream.finished);
 
 const handler = async (msg, { conn, text, command }) => {
   const chatId = msg.key.remoteJid;
@@ -25,40 +28,45 @@ const handler = async (msg, { conn, text, command }) => {
     const res = await axios.get(`https://api.dorratz.com/fbvideo?url=${encodeURIComponent(text)}`);
     const results = res.data;
 
-    if (!results || results.length === 0 || !results[0].url) {
+    if (!results || results.length === 0) {
       return await conn.sendMessage(chatId, {
         text: "❌ No se pudo obtener el video."
       }, { quoted: msg });
     }
 
     const videoUrl = results[0].url;
-    const filePath = path.resolve(`./tmp/fb-${Date.now()}.mp4`);
+    const fileName = `fb_video_${Date.now()}.mp4`;
+    const filePath = path.join(__dirname, 'tmp', fileName);
 
-    // Descargar y guardar localmente
-    const videoRes = await axios.get(videoUrl, { responseType: "stream" });
     const writer = fs.createWriteStream(filePath);
+    const response = await axios.get(videoUrl, { responseType: 'stream' });
+    response.data.pipe(writer);
+    await finished(writer);
 
-    await new Promise((resolve, reject) => {
-      videoRes.data.pipe(writer);
-      writer.on("finish", resolve);
-      writer.on("error", reject);
-    });
+    // Validar peso en MB
+    const stats = fs.statSync(filePath);
+    const fileSizeMB = stats.size / (1024 * 1024); // Convertir a MB
 
-    // Enviar el video como documento
+    if (fileSizeMB > 500) {
+      fs.unlinkSync(filePath); // borrar para liberar espacio
+      return await conn.sendMessage(chatId, {
+        text: `❌ *El archivo pesa ${fileSizeMB.toFixed(2)}MB y excede el límite de 500MB.*`
+      }, { quoted: msg });
+    }
+
     const caption = `📄 *Resoluciones disponibles:*\n${results.map(r => `- ${r.resolution}`).join('\n')}\n\n📥 *Video descargado como documento (720p)*\n🍧 *API:* api.dorratz.com\n\n───────\n© Azura Ultra & Cortana`;
 
     await conn.sendMessage(chatId, {
       document: fs.readFileSync(filePath),
-      mimetype: "video/mp4",
-      fileName: "facebook_video.mp4",
+      mimetype: 'video/mp4',
+      fileName: 'facebook_video.mp4',
       caption
     }, { quoted: msg });
 
-    // Borrar archivo temporal
-    fs.unlinkSync(filePath);
+    fs.unlinkSync(filePath); // limpiar después de enviar
 
     await conn.sendMessage(chatId, {
-      react: { text: "✅", key: msg.key }
+      react: { text: '✅', key: msg.key }
     });
 
   } catch (err) {
