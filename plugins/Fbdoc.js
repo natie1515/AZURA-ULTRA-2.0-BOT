@@ -35,8 +35,15 @@ const handler = async (msg, { conn, text, command }) => {
     }
 
     const videoUrl = results[0].url;
+
+    // ✅ Asegurarse que existe carpeta ./tmp
+    const tmpDir = path.join(__dirname, 'tmp');
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir, { recursive: true });
+    }
+
     const fileName = `fb_video_${Date.now()}.mp4`;
-    const filePath = path.join(__dirname, 'tmp', fileName);
+    const filePath = path.join(tmpDir, fileName);
 
     const writer = fs.createWriteStream(filePath);
     const response = await axios.get(videoUrl, { responseType: 'stream' });
