@@ -62,7 +62,7 @@ const handler = async (msg, { conn, args }) => {
   });
 
   return conn.sendMessage(chatId, {
-    text: `✅ *Sticker vinculado al comando:* \`${comando}\``,
+    text: `✅ *Sticker vinculado al comando con exito:* \`${comando}\``,
     quoted: msg
   });
 };
