@@ -544,13 +544,13 @@ case 'pack2': {
 }
 break;
       
-
 case "modoadmins": {
   try {
-    const senderNumber = (msg.key.participant || msg.key.remoteJid).replace(/[@:\-s.whatsapp.net]/g, "");
-    const isBotMessage = msg.key.fromMe;
     const chatId = msg.key.remoteJid;
     const isGroup = chatId.endsWith("@g.us");
+    const senderId = msg.key.participant || msg.key.remoteJid;
+    const senderNum = senderId.replace(/[^0-9]/g, "");
+    const isBotMessage = msg.key.fromMe;
 
     if (!isGroup) {
       await sock.sendMessage(chatId, {
@@ -559,11 +559,15 @@ case "modoadmins": {
       break;
     }
 
+    // Obtener metadata del grupo
     const metadata = await sock.groupMetadata(chatId);
-    const participant = metadata.participants.find(p => p.id.includes(senderNumber));
-    const isAdmin = participant?.admin === "admin" || participant?.admin === "superadmin";
 
-    if (!isAdmin && !isOwner(senderNumber) && !isBotMessage) {
+    // Buscar el participante exacto (ya sea @lid o número real)
+    const participant = metadata.participants.find(p => p.id === senderId);
+    const isAdmin = participant?.admin === "admin" || participant?.admin === "superadmin";
+    const isOwner = global.owner.some(([id]) => id === senderNum);
+
+    if (!isAdmin && !isOwner && !isBotMessage) {
       await sock.sendMessage(chatId, {
         text: "❌ Solo administradores o el owner pueden usar este comando."
       }, { quoted: msg });
@@ -609,6 +613,7 @@ case "modoadmins": {
   }
   break;
 }
+
       
 case "modoprivado": {
   try {
