@@ -4141,7 +4141,7 @@ case 'allmenu': {
         await sock.sendMessage2(
   chatId,
   {
-    image: { url: "https://cdn.dorratz.com/files/1744666819010.jpg" }, 
+    image: { url: "https://cdn.russellxz.click/9bd11d81.jpeg" }, 
     caption: commandList 
   },
   msg 
@@ -4204,14 +4204,14 @@ case 'menuowner': {
          𝙖𝙯𝙪𝙧𝙖 𝙪𝙡𝙩𝙧𝙖`;
 
     const videoResponse = await axios.get(
-      "https://cdn.dorratz.com/files/1741471185939.mp4",
+      "https://cdn.russellxz.click/83229a2d.jpeg",
       { responseType: 'arraybuffer' }
     );
 
 await sock.sendMessage2(
   chatId,
   {
-    image: { url: "https://cdn.dorratz.com/files/1744667309694.jpg" }, 
+    image: { url: "https://cdn.russellxz.click/83229a2d.jpeg" }, 
     caption: captionText 
   },
   msg 
@@ -4298,13 +4298,13 @@ Así te registras
 │ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼        │  
 ╰────────────────╯`;
 
-    const videoUrl = "https://cdn.dorratz.com/files/1741474416069.mp4";
+    const videoUrl = "https://cdn.russellxz.click/0abb8549.jpeg";
     const videoBuffer = (await axios.get(videoUrl, { responseType: 'arraybuffer' })).data;
 
 await sock.sendMessage2(
   chatId,
   {
-    image: { url: "https://cdn.dorratz.com/files/1744667713683.jpg" }, 
+    image: { url: "https://cdn.russellxz.click/0abb8549.jpeg" }, 
     caption: menuText
   },
   msg 
@@ -4502,7 +4502,7 @@ case 'menu': {
     await sock.sendMessage2(
   chatId,
   {
-    image: { url: "https://cdn.dorratz.com/files/1744672917987.jpg" }, 
+    image: { url: "https://cdn.russellxz.click/752ef2f1.jpeg" }, 
     caption: captionText 
   },
   msg 
@@ -4581,14 +4581,14 @@ case 'menugrupo': {
 
 ⟢ 𝐀𝐙𝐔𝐑𝐀 𝐔𝐋𝐓𝐑𝐀 ⟣`;
 
-    const videoResponse = await axios.get("https://cdn.dorratz.com/files/1741471817068.mp4", { 
+    const videoResponse = await axios.get("https://cdn.russellxz.click/0abb8549.jpeg", { 
       responseType: 'arraybuffer' 
     });
 
     await sock.sendMessage2(
   chatId,
   {
-    image: { url: "https://cdn.dorratz.com/files/1744666186448.jpg" }, 
+    image: { url: "https://cdn.russellxz.click/0abb8549.jpeg" }, 
     caption: captionText 
   },
   msg
