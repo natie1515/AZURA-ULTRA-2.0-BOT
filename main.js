@@ -15397,93 +15397,57 @@ case "tt":
     }
     break;
         
+
+
 case "facebook":
-case "fb": {
-  const chatId = msg.key.remoteJid;
-  const text = args.join(" ").trim();
-
-  if (!text) {
-    return sock.sendMessage(chatId, {
-      text: `✳️ Ejemplo de uso:\n📌 *${global.prefix + command}* https://fb.watch/ncowLHMp-x/`
+case "fb":
+    if (!text) return sock.sendMessage(msg.key.remoteJid, { 
+        text: `Ejemplo de uso:\n${global.prefix + command} https://fb.watch/ncowLHMp-x/` 
     }, { quoted: msg });
-  }
 
-  if (!text.match(/(www\.facebook\.com|fb\.watch)/gi)) {
-    return sock.sendMessage(chatId, {
-      text: `❌ *Enlace de Facebook inválido.*\n\n📌 Ejemplo:\n${global.prefix + command} https://fb.watch/ncowLHMp-x/`
-    }, { quoted: msg });
-  }
-
-  await sock.sendMessage(chatId, {
-    react: { text: "⏳", key: msg.key }
-  });
-
-  try {
-    const res = await axios.get(`https://api.dorratz.com/fbvideo?url=${encodeURIComponent(text)}`);
-    const results = res.data;
-
-    if (!results || results.length === 0 || !results[0].url) {
-      return sock.sendMessage(chatId, {
-        text: "❌ No se pudo obtener el video."
-      }, { quoted: msg });
+    if (!text.match(/www.facebook.com|fb.watch/g)) {
+        return sock.sendMessage(msg.key.remoteJid, {
+            text: `❌ Enlace de Facebook inválido.\nEjemplo de uso:\n${global.prefix + command} https://fb.watch/ncowLHMp-x/`
+        });
     }
 
-    // Crear carpeta tmp si no existe
-    const tmpDir = path.resolve("./tmp");
-    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
+    try {
+        // ⏳ Reacción de carga mientras se procesa
+        await sock.sendMessage(msg.key.remoteJid, {
+            react: { text: '⏳', key: msg.key }
+        });
 
-    const videoUrl = results[0].url;
-    const filePath = path.join(tmpDir, `fb-${Date.now()}.mp4`);
+        const axios = require('axios');
+        const response = await axios.get(`https://api.dorratz.com/fbvideo?url=${encodeURIComponent(text)}`);
+        const results = response.data;
 
-    // Descargar el video
-    const videoRes = await axios.get(videoUrl, { responseType: "stream" });
-    const writer = fs.createWriteStream(filePath);
+        if (!results || results.length === 0) {
+            return sock.sendMessage(msg.key.remoteJid, { text: "❌ No se pudo obtener el video." });
+        }
 
-    await new Promise((resolve, reject) => {
-      videoRes.data.pipe(writer);
-      writer.on("finish", resolve);
-      writer.on("error", reject);
-    });
+        // 📜 Construcción del mensaje con resoluciones disponibles
+        const message = `Resoluciones disponibles:\n${results.map((res) => `- ${res.resolution}`).join('\n')}\n\n🔥 Enviado en 720p\n\n> 🍧 Solicitud procesada por api.dorratz.com\n\n───────\n© Azura Ultra`;
 
-    // Medir tamaño del archivo
-    const stats = fs.statSync(filePath);
-    const sizeMB = stats.size / (1024 * 1024);
+        // 📩 Enviar el video con la marca de agua
+        await sock.sendMessage(msg.key.remoteJid, {
+            video: { url: results[0].url }, // Se envía en 720p por defecto
+            caption: message
+        }, { quoted: msg });
 
-    if (sizeMB > 99) {
-      fs.unlinkSync(filePath); // eliminar archivo temporal
-      return sock.sendMessage(chatId, {
-        text: `❌ El archivo pesa *${sizeMB.toFixed(2)} MB* y excede el límite de *99 MB*.\n\n🔒 Por seguridad y estabilidad del servidor no se permiten descargas mayores a *99 MB*.`
-      }, { quoted: msg });
+        // ✅ Confirmación con reacción de éxito
+        await sock.sendMessage(msg.key.remoteJid, { 
+            react: { text: "✅", key: msg.key } 
+        });
+
+    } catch (error) {
+        console.error(error);
+        await sock.sendMessage(msg.key.remoteJid, {
+            text: "❌ Ocurrió un error al procesar el enlace de Facebook."
+        });
     }
-
-    // Texto del video
-    const caption = `📄 *Resoluciones disponibles:*\n${results.map(r => `- ${r.resolution}`).join('\n')}\n\n📥 *Video descargado en 720p*\n🍧 *API:* api.dorratz.com\n\n───────\n© Azura Ultra`;
-
-    // Enviar el video como documento
-    await sock.sendMessage(chatId, {
-      document: fs.readFileSync(filePath),
-      mimetype: "video/mp4",
-      fileName: "facebook_video.mp4",
-      caption
-    }, { quoted: msg });
-
-    // Eliminar archivo temporal
-    fs.unlinkSync(filePath);
-
-    await sock.sendMessage(chatId, {
-      react: { text: "✅", key: msg.key }
-    });
-
-  } catch (err) {
-    console.error("❌ Error en comando fb:", err);
-    await sock.sendMessage(chatId, {
-      text: "❌ Ocurrió un error al procesar el enlace de Facebook."
-    }, { quoted: msg });
-  }
-
-  break;
+    break;
+    }
 }
-
         
 
 
