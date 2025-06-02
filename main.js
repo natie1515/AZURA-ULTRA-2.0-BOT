@@ -281,7 +281,7 @@ case 'play': {
 
     const info = `
 ╔═════════════════╗
-║✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝗹𝗍𝗋𝗮 & 𝘾𝙤𝙧𝙩𝙖𝙣𝙖 ✦
+║✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝗹𝗍𝗋𝗮 ✦
 ╚═════════════════╝
 📀 *𝙄𝗻𝗳𝗼 𝗱𝗲𝗹 𝘃𝗶𝗱𝗲𝗼:*  
 ╭───────────────╮  
@@ -296,7 +296,7 @@ case 'play': {
 ┣ 🎥 *Video:* _${global.prefix}play6 boza hoy_
 ┗ ⚠️ *¿No se reproduce?* Usa _${global.prefix}ff_
 ═════════════════════  
-   𖥔 Azura Ultra & Cortana 𖥔
+   𖥔 Azura Ultra 𖥔
 ═════════════════════
 ✳️ *Para descargar desde este mensaje:*
 • Responde con *1* o *audio* para recibir la música.
@@ -356,7 +356,7 @@ case 'play2': {
 
     const info = `
 ╔═════════════════╗
-║✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝗹𝗍𝗋𝗮 & 𝘾𝙤𝙧𝙩𝙖𝙣𝙖 ✦
+║✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝗹𝗍𝗋𝗮 ✦
 ╚═════════════════╝
 📀 *𝙄𝗻𝗳𝗼 𝗱𝗲𝗹 𝘃𝗶𝗱𝗲𝗼:*  
 ╭───────────────╮  
@@ -371,7 +371,7 @@ case 'play2': {
 ┣ 🎥 *Video:* _${global.prefix}play6 boza hoy_
 ┗ ⚠️ *¿No se reproduce?* Usa _${global.prefix}ff_
 ═════════════════════  
-   𖥔 Azura Ultra & Cortana 𖥔
+   𖥔 Azura Ultra  𖥔
 ═════════════════════
 ✳️ *Para descargar desde este mensaje:*
 • Responde con *1* o *audio* para recibir la música.
@@ -450,7 +450,7 @@ ${global.prefix}guar → Guarda archivos con una clave.
 ${global.prefix}g → Recupera archivos guardados.  
 ${global.prefix}kill → Elimina un archivo guardado.  
 
-💡 *Azura Ultra & Cortana sigue mejorando. Pronto más funciones.*  
+💡 *Azura Ultra sigue mejorando. Pronto más funciones.*  
 ⚙️ *Desarrollado por Russell xz* 🚀`;
 
         // Enviar el menú con video como GIF
@@ -1280,7 +1280,7 @@ case 'play222': {
         // 2. BANNER: Enviamos la vista previa con la info
         const captionPreview = `
 ╔═════════════════╗
-║✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝗹𝗍𝗋𝗮 & 𝘾𝙤𝙧𝙩𝙖𝙣𝙖 ✦
+║✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝗹𝗍𝗋𝗮 ✦
 ╚═════════════════╝
 
 📀 *𝙄𝗻𝗳𝗼 𝗱𝗲𝗹 𝘃𝗶𝗱𝗲𝗼:*  
@@ -1299,9 +1299,9 @@ case 'play222': {
 ┣ 🎥 *Video:* _${global.prefix}play6 ${text}_
 ┗ ⚠️ *¿No se reproduce?* Usa _${global.prefix}ff_
 
-⏳ *Procesado por Azura Ultra & Cortana Bot*
+⏳ *Procesado por Azura Ultra*
 ═════════════════════  
-   𖥔 Azura Ultra & Cortana 𖥔
+   𖥔 Azura Ultra  𖥔
 ═════════════════════`;
         
         await sock.sendMessage(msg.key.remoteJid, {
@@ -1352,7 +1352,7 @@ case 'play222': {
             throw new Error('El video descargado está vacío o incompleto');
         }
 
-        const finalText = `🎬 Aquí tiene su video.\n\nDisfrútelo y continúe explorando el mundo digital.\n\n© Azura Ultra & Cortana`;
+        const finalText = `🎬 Aquí tiene su video.\n\nDisfrútelo y continúe explorando el mundo digital.\n\n© Azura Ultra`;
 
         await sock.sendMessage(msg.key.remoteJid, {
             video: fs.readFileSync(filePath),
@@ -2071,7 +2071,7 @@ case 'play11': {
 
         const infoMessage = `
 ╔══════════════════╗
-║  ✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 & 𝘾𝙊𝙍𝙏𝘼𝙉𝘼 ✦
+║  ✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼  ✦
 ╚══════════════════╝
 
 📀 *𝙄𝙣𝙛𝙤 𝙙𝙚𝙡 𝙖𝙪𝙙𝙞𝙤:*  
@@ -2090,9 +2090,9 @@ case 'play11': {
 ┗ 🎥 *Video:* _${global.prefix}play6 ${text}_
 
 ⏳ *Espera un momento...*  
-⚙️ *Azura Ultra & Cortana está procesando tu música...*
+⚙️ *Azura Ultra  está procesando tu música...*
 ═══════════════════  
-     𖥔 Azura Ultra & Cortana 𖥔`;
+     𖥔 Azura Ultra 𖥔`;
 
         await sock.sendMessage(msg.key.remoteJid, {
             image: { url: thumbnail },
@@ -2236,7 +2236,7 @@ case 'ytmp4': {
 ╰───────────────╯
 ┗ ⚠️ *¿No se reproduce?* Usa _${global.prefix}ff_
 
-⏳ *Procesado por Azura Ultra & Cortana*`;
+⏳ *Procesado por Azura Ultra*`;
 
         await sock.sendMessage(msg.key.remoteJid, {
             video: fs.readFileSync(filePath),
@@ -2493,7 +2493,7 @@ case 'play3': {
 ⧁ 𝙋𝙊𝙋𝙐𝙇𝘼𝙍𝙄𝘿𝘼𝘿: ${result.popularity}
 ⧁ 𝙀𝙉𝙇𝘼𝘾𝙀: ${url}
 
-🎶 *Azura Ultra & Cortana esta enviando tu música...*`.trim();
+🎶 *Azura Ultra  esta enviando tu música...*`.trim();
 
         await sock.sendMessage(msg.key.remoteJid, {
             image: { url: img },
@@ -2627,7 +2627,7 @@ case 'play5': {
 
         const infoMessage = `
 ╔══════════════════╗
-║  ✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 & 𝘾𝙊𝙍𝙏𝘼𝙉𝘼 ✦   
+║  ✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 ✦   
 ╚══════════════════╝
 
 📀 *𝙄𝙣𝙛𝙤 𝙙𝙚𝙡 𝙫𝙞𝙙𝙚𝙤:*  
@@ -2649,7 +2649,7 @@ case 'play5': {
 ⚙️ *Azura Ultra 2.0 está procesando tu música...*
 
 ═════════════════════  
-         𖥔 𝗔𝘇𝘂𝗋𝗮 𝗨𝗹𝘁𝗋𝗮 & 𝘾𝙤𝙧𝙩𝙖𝙣𝙖 𖥔
+         𖥔 𝗔𝘇𝘂𝗋𝗮 𝗨𝗹𝘁𝗋𝗮 𖥔
 ═════════════════════`;
 
         await sock.sendMessage(msg.key.remoteJid, {
@@ -2806,7 +2806,7 @@ case 'play6': {
 
         const infoMessage = `
 ╔══════════════════╗
-║✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 & 𝘾𝙊𝙍𝙏𝘼𝙉𝘼  ✦   ║
+║✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼     ✦   ║
 ╚══════════════════╝
 
 📀 *𝙄𝙣𝙛𝙤 𝙙𝙚𝙡 𝙫𝙞𝙙𝙚𝙤:*  
@@ -2828,7 +2828,7 @@ case 'play6': {
 ⚙️ *Azura Ultra 2.0 está procesando tu video...*
 
 ═════════════════════  
-         𖥔 𝗔𝘇𝘂𝗋𝗮 𝗨𝗹𝘁𝗋𝗮 & 𝘾𝙊𝙍𝙏𝘼𝙉𝘼 𖥔
+         𖥔 𝗔𝘇𝘂𝗋𝗮 𝗨𝗹𝘁𝗋𝗮 𖥔
 ═════════════════════`;
 
         await sock.sendMessage(msg.key.remoteJid, {
@@ -4117,7 +4117,7 @@ case 'allmenu': {
 
         // Construir menú
         let commandList = `╔════════════════════╗  
-║  𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 & 𝘾𝙊𝙍𝙏𝘼𝙉𝘼  ║  
+║  𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼              ║  
 ╚════════════════════╝  
         📜 *Menú Completo*  
 ━━━━━━━━━━━━━━━━━━━  
@@ -4134,7 +4134,7 @@ case 'allmenu': {
         commandList += `━━━━━━━━━━━━━━━━━━━  
 👨‍💻 𝘿𝙚𝙨𝙖𝙧𝙧𝙤𝙡𝙡𝙖𝙙𝙤 𝙥𝙤𝙧 𝙍𝙪𝙨𝙨𝙚𝙡𝙡 𝙓𝙕  
 ╭────────────────╮  
-│ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 & 𝘾𝙊𝙍𝙏𝘼𝙉𝘼 │  
+│ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼        │  
 ╰────────────────╯`;
 
         // Enviar usando sendMessage2
@@ -4164,7 +4164,7 @@ case 'menuowner': {
 
     const chatId = msg.key.remoteJid;
     const captionText = `╔═══════════════╗  
-║     𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 & 𝘾𝙊𝙍𝙏𝘼𝙉𝘼    ║  
+║     𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼     ║  
 ╚═══════════════╝  
 
             𝐌𝐄𝐍𝐔 𝐎𝐖𝐍𝐄𝐑  
@@ -4201,7 +4201,7 @@ case 'menuowner': {
 
       𝗗𝗲𝘀𝗮𝗿𝗿𝗼𝗹𝗹𝗮𝗱𝗼 𝗽𝗼𝗿: ʳᵘˢˢᵉˡˡ ˣᶻ  
 
-         𝙖𝙯𝙪𝙧𝙖 𝙪𝙡𝙩𝙧𝙖 & 𝘾𝙤𝙧𝙩𝙖𝙣𝙖`;
+         𝙖𝙯𝙪𝙧𝙖 𝙪𝙡𝙩𝙧𝙖`;
 
     const videoResponse = await axios.get(
       "https://cdn.dorratz.com/files/1741471185939.mp4",
@@ -4235,7 +4235,7 @@ case 'menurpg': {
 
     const chatId = msg.key.remoteJid;
     const menuText = `╔═════════════════╗  
-║   𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 & 𝘾𝙊𝙍𝙏𝘼𝙉𝘼 ║  
+║   𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼        ║  
 ╚═════════════════╝  
 
 ✦ 𝐁𝐈𝐄𝐍𝐕𝐄𝐍𝐈𝐃𝐎 𝐀𝐋 𝐌𝐄𝐍𝐔 𝐑𝐏𝐆 ✦  
@@ -4295,7 +4295,7 @@ Así te registras
 𝗗𝗘𝗦𝗔𝗥𝗥𝗢𝗟𝗟𝗔𝗗𝗢 𝗣𝗢𝗥: russell xz  
 
 ╭────────────────╮  
-│ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 & 𝘾𝙊𝙍𝙏𝘼𝙉𝘼 │  
+│ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼        │  
 ╰────────────────╯`;
 
     const videoUrl = "https://cdn.dorratz.com/files/1741474416069.mp4";
@@ -4329,7 +4329,7 @@ case 'menu': {
 
     const chatId = msg.key.remoteJid;
     const captionText = `╔═══════════════╗  
-║ 𝐀𝐙𝐔𝐑𝐀 𝐔𝐋𝐓𝐑𝐀 & 𝐂𝐎𝐑𝐓𝐀𝐍𝐀  ║  
+║ 𝐀𝐙𝐔𝐑𝐀 𝐔𝐋𝐓𝐑𝐀  ║  
 ║   🤖 𝘼𝙎𝙄𝙎𝙏𝙀𝙉𝙏𝙀 🤖   ║  
 ╚═══════════════╝  
 
@@ -4492,7 +4492,7 @@ case 'menu': {
 ⎔ ${global.prefix}Neko
 
 ╭─────────────────╮  
- ✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 & 𝘾𝙊𝙍𝙏𝘼𝙉𝘼 𝙀𝙎𝙏Á 𝙀𝙉 𝘾𝙊𝙉𝙎𝙏𝘼𝙉𝙏𝙀 𝘿𝙀𝙎𝘼𝙍𝙍𝙊𝙇𝙇𝙊. 
+ ✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 𝙀𝙎𝙏Á 𝙀𝙉 𝘾𝙊𝙉𝙎𝙏𝘼𝙉𝙏𝙀 𝘿𝙀𝙎𝘼𝙍𝙍𝙊𝙇𝙇𝙊. 
   𝙎𝙀 𝘼𝙂𝙍𝙀𝙂𝘼𝙍Á𝙉 𝙈Á𝙎 𝙁𝙐𝙉𝘾𝙄𝙊𝙉𝙀𝙎 𝙋𝙍𝙊𝙉𝙏𝙊.   
 ╰─────────────────╯  
 
@@ -4526,7 +4526,7 @@ case 'menugrupo': {
 
     const chatId = msg.key.remoteJid;
     const captionText = `╔══════════════════╗  
-║  𝐀𝐙𝐔𝐑𝐀 𝐔𝐋𝐓𝐑𝐀 &  𝐂𝐎𝐑𝐓𝐀𝐍𝐀   ║  
+║  𝐀𝐙𝐔𝐑𝐀 𝐔𝐋𝐓𝐑𝐀            ║  
 ║   🎭 𝙼𝙴𝙽𝚄 𝙳𝙴 𝙶ℝ𝚄𝙿𝙾 🎭   ║  
 ╚══════════════════╝  
 
@@ -4579,7 +4579,7 @@ case 'menugrupo': {
 
 📌 𝐌Á𝐒 𝐂𝐎𝐌𝐀𝐍𝐃𝐎𝐒 𝐏𝐑Ó𝐗𝐈𝐌𝐀𝐌𝐄𝐍𝐓𝐄...
 
-⟢ 𝐀𝐙𝐔𝐑𝐀 𝐔𝐋𝐓𝐑𝐀 & 𝐂𝐎𝐑𝐓𝐀𝐍𝐀 ⟣`;
+⟢ 𝐀𝐙𝐔𝐑𝐀 𝐔𝐋𝐓𝐑𝐀 ⟣`;
 
     const videoResponse = await axios.get("https://cdn.dorratz.com/files/1741471817068.mp4", { 
       responseType: 'arraybuffer' 
@@ -5386,7 +5386,7 @@ case 'todos': {
     const extraMsg = args.join(" ");
 
     let finalMsg = "━〔 *📢 INVOCACIÓN 📢* 〕━➫\n";
-    finalMsg += "٩(͡๏̯͡๏)۶ Por Azura Ultra & Cortana ٩(͡๏̯͡๏)۶\n";
+    finalMsg += "٩(͡๏̯͡๏)۶ Por Azura Ultra ٩(͡๏̯͡๏)۶\n";
     if (extraMsg.trim().length > 0) {
       finalMsg += `\n❑ Mensaje: ${extraMsg}\n\n`;
     } else {
@@ -11386,7 +11386,7 @@ case 'verdad': {
 
         await sock.sendMessage(msg.key.remoteJid, {
             image: { url: 'https://cdn.dorratz.com/files/1740781671173.jpg' },
-            caption: `𝘏𝘢𝘴 𝘦𝘴𝘤𝘰𝘨𝘪𝘥𝘰 *𝘝𝘌𝘙𝘋𝘈𝘋*\n\n╱╲❀╱╲╱╲❀╱╲╱╲❀╱╲\n◆ ${verdad}\n╲╱❀╲╱╲╱❀╲╱╲╱❀╲╱\n\n© Azura Ultra & Cortana`
+            caption: `𝘏𝘢𝘴 𝘦𝘴𝘤𝘰𝘨𝘪𝘥𝘰 *𝘝𝘌𝘙𝘋𝘈𝘋*\n\n╱╲❀╱╲╱╲❀╱╲╱╲❀╱╲\n◆ ${verdad}\n╲╱❀╲╱╲╱❀╲╱╲╱❀╲╱\n\n© Azura Ultra`
         }, { quoted: msg });
 
         // ✅ Reacción de éxito
@@ -11418,7 +11418,7 @@ case 'reto': {
 
         await sock.sendMessage(msg.key.remoteJid, {
             image: { url: 'https://cdn.dorratz.com/files/1740781675920.jpg' },
-            caption: `𝘏𝘢𝘴 𝘦𝘴𝘤𝘰𝘨𝘪𝘥𝘰 *𝘙𝘌𝘛𝘖*\n\n╱╲❀╱╲╱╲❀╱╲╱╲❀╱╲\n◆ ${reto}\n╲╱❀╲╱╲╱❀╲╱╲╱❀╲╱\n\n© Azura Ultra & Cortana`
+            caption: `𝘏𝘢𝘴 𝘦𝘴𝘤𝘰𝘨𝘪𝘥𝘰 *𝘙𝘌𝘛𝘖*\n\n╱╲❀╱╲╱╲❀╱╲╱╲❀╱╲\n◆ ${reto}\n╲╱❀╲╱╲╱❀╲╱╲╱❀╲╱\n\n© Azura Ultra`
         }, { quoted: msg });
 
     } catch (e) {
@@ -11500,7 +11500,7 @@ case 'memes': {
 
         await sock.sendMessage(msg.key.remoteJid, {
             image: { url: meme },
-            caption: "🤣 *¡Aquí tienes un meme!*\n\n© Azura Ultra & Cortana"
+            caption: "🤣 *¡Aquí tienes un meme!*\n\n© Azura Ultra"
         }, { quoted: msg });
 
     } catch (e) {
@@ -11749,7 +11749,7 @@ case 'ia': {
         const respuestaGPT4 = data.data.message;
 
         await sock.sendMessage(msg.key.remoteJid, { 
-            text: `✨ *GPT-4 responde a @${userId.replace("@s.whatsapp.net", "")}:*\n\n${respuestaGPT4}\n\n🔹 *Powered by Azura Ultra & Cortana* 🤖`,
+            text: `✨ *GPT-4 responde a @${userId.replace("@s.whatsapp.net", "")}:*\n\n${respuestaGPT4}\n\n🔹 *Powered by Azura Ultra* 🤖`,
             mentions: [userId] 
         }, { quoted: msg });
 
@@ -14123,7 +14123,7 @@ case "s":
         // 🌟 Formato llamativo para la metadata del sticker 🌟
         let metadata = {
             packname: `✨ Lo Mandó Hacer: ${senderName} ✨`,
-            author: `🤖 Bot Creador: Azura Ultra & Cortana\n🛠️ Desarrollado por: 𝙍𝙪𝙨𝙨𝙚𝙡𝙡 xz💻\n${fechaCreacion}`
+            author: `🤖 Bot Creador: Azura Ultra\n🛠️ Desarrollado por: 𝙍𝙪𝙨𝙨𝙚𝙡𝙡 xz💻\n${fechaCreacion}`
         };
 
         let stickerBuffer;
@@ -14423,7 +14423,7 @@ case 'info':
       react: { text: "ℹ️", key: msg.key }
     });
 
-    const infoMessage = `╭─ *🤖 AZURA ULTRA &  CORTANA* ─╮
+    const infoMessage = `╭─ *🤖 AZURA ULTRA* ─╮
 │ 🔹 *Prefijo actual:* ${global.prefix}
 │ 👑 *Dueño:* Russell xz
 │ 🛠️ *Bot desarrollado desde cero* con la ayuda de Chatgpt.
@@ -15304,7 +15304,7 @@ case "ig":
         }
 
         // 📜 Construcción del mensaje con marca de agua
-        const caption = `🎬 *Video de Instagram*\n\n> 🍧Solicitud procesada por api.dorratz.com\n\n───────\n© Azura Ultra & Cortana`;
+        const caption = `🎬 *Video de Instagram*\n\n> 🍧Solicitud procesada por api.dorratz.com\n\n───────\n© Azura Ultra`;
 
         // 📩 Enviar cada video descargado con la marca de agua
         for (let item of data) {
@@ -15371,7 +15371,7 @@ case "tt":
         
         // 📢 Agregar la API utilizada y marca de agua con buen formato
         mensaje += `───────\n🍧 *API utilizada:* https://api.dorratz.com\n`;
-        mensaje += `© Azura Ultra & Cortana`;
+        mensaje += `© Azura Ultra`;
 
         // 📩 Enviar el video con la información
         await sock.sendMessage(msg.key.remoteJid, {
@@ -15424,7 +15424,7 @@ case "fb":
         }
 
         // 📜 Construcción del mensaje con resoluciones disponibles
-        const message = `Resoluciones disponibles:\n${results.map((res) => `- ${res.resolution}`).join('\n')}\n\n🔥 Enviado en 720p\n\n> 🍧 Solicitud procesada por api.dorratz.com\n\n───────\n© Azura Ultra & Cortana`;
+        const message = `Resoluciones disponibles:\n${results.map((res) => `- ${res.resolution}`).join('\n')}\n\n🔥 Enviado en 720p\n\n> 🍧 Solicitud procesada por api.dorratz.com\n\n───────\n© Azura Ultra`;
 
         // 📩 Enviar el video con la marca de agua
         await sock.sendMessage(msg.key.remoteJid, {
