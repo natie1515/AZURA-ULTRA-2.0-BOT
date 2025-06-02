@@ -132,7 +132,7 @@ const handler = async (msg, { conn, text, command }) => {
     console.error('Error en ytmp45 (video):', err);
     
     await conn.sendMessage(msg.key.remoteJid, {
-      text: `❌ *Error al descargar el video:*\n${err.message}`
+      text: `❌ *Error al descargar el video Talvez excede el límite de 99MB:*\n${err.message}`
     }, { quoted: msg });
 
     await conn.sendMessage(msg.key.remoteJid, {
