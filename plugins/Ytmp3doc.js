@@ -68,7 +68,7 @@ const handler = async (msg, { conn, text, usedPrefix }) => {
   } catch (err) {
     console.error(err);
     await conn.sendMessage(msg.key.remoteJid, {
-      text: `❌ *Error:* ${err.message}`
+      text: `❌ *Error Talvez excede el límite de 99MB:* ${err.message}`
     }, { quoted: msg });
 
     await conn.sendMessage(msg.key.remoteJid, {
