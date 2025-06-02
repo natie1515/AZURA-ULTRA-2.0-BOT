@@ -4581,14 +4581,14 @@ case 'menugrupo': {
 
 ⟢ 𝐀𝐙𝐔𝐑𝐀 𝐔𝐋𝐓𝐑𝐀 ⟣`;
 
-    const videoResponse = await axios.get("https://cdn.russellxz.click/0abb8549.jpeg", { 
+    const videoResponse = await axios.get("https://cdn.russellxz.click/c113150e.jpeg", { 
       responseType: 'arraybuffer' 
     });
 
     await sock.sendMessage2(
   chatId,
   {
-    image: { url: "https://cdn.russellxz.click/0abb8549.jpeg" }, 
+    image: { url: "https://cdn.russellxz.click/c113150e.jpeg" }, 
     caption: captionText 
   },
   msg
