@@ -15418,21 +15418,54 @@ case "fb":
         });
 
         const axios = require('axios');
+        const fs = require('fs');
+        const path = require('path');
         const response = await axios.get(`https://api.dorratz.com/fbvideo?url=${encodeURIComponent(text)}`);
         const results = response.data;
 
-        if (!results || results.length === 0) {
+        if (!results || results.length === 0 || !results[0].url) {
             return sock.sendMessage(msg.key.remoteJid, { text: "❌ No se pudo obtener el video." });
+        }
+
+        // Asegurar carpeta tmp
+        const tmpDir = path.resolve('./tmp');
+        if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
+
+        const videoUrl = results[0].url;
+        const filePath = path.join(tmpDir, `fb-${Date.now()}.mp4`);
+
+        // Descargar y guardar
+        const videoRes = await axios.get(videoUrl, { responseType: 'stream' });
+        const writer = fs.createWriteStream(filePath);
+
+        await new Promise((resolve, reject) => {
+            videoRes.data.pipe(writer);
+            writer.on("finish", resolve);
+            writer.on("error", reject);
+        });
+
+        const stats = fs.statSync(filePath);
+        const sizeMB = stats.size / (1024 * 1024);
+
+        if (sizeMB > 99) {
+            fs.unlinkSync(filePath);
+            return sock.sendMessage(msg.key.remoteJid, {
+                text: `❌ El archivo pesa ${sizeMB.toFixed(2)}MB y excede el límite de 99MB.\n\n🔒 Solo se permiten descargas menores a 99MB para no saturar los servidores.`
+            }, { quoted: msg });
         }
 
         // 📜 Construcción del mensaje con resoluciones disponibles
         const message = `Resoluciones disponibles:\n${results.map((res) => `- ${res.resolution}`).join('\n')}\n\n🔥 Enviado en 720p\n\n> 🍧 Solicitud procesada por api.dorratz.com\n\n───────\n© Azura Ultra`;
 
-        // 📩 Enviar el video con la marca de agua
+        // 📩 Enviar el video como documento
         await sock.sendMessage(msg.key.remoteJid, {
-            video: { url: results[0].url }, // Se envía en 720p por defecto
+            document: fs.readFileSync(filePath),
+            mimetype: 'video/mp4',
+            fileName: 'facebook_video.mp4',
             caption: message
         }, { quoted: msg });
+
+        fs.unlinkSync(filePath);
 
         // ✅ Confirmación con reacción de éxito
         await sock.sendMessage(msg.key.remoteJid, { 
