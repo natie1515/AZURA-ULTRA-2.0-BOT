@@ -15293,6 +15293,9 @@ case "ig":
         });
 
         const axios = require('axios');
+        const fs = require('fs');
+        const path = require('path');
+
         const apiUrl = `https://api.dorratz.com/igdl?url=${text}`;
         const response = await axios.get(apiUrl);
         const { data } = response.data;
@@ -15306,12 +15309,41 @@ case "ig":
         // 📜 Construcción del mensaje con marca de agua
         const caption = `🎬 *Video de Instagram*\n\n> 🍧Solicitud procesada por api.dorratz.com\n\n───────\n© Azura Ultra`;
 
-        // 📩 Enviar cada video descargado con la marca de agua
+        // Asegurar carpeta tmp
+        const tmpDir = path.resolve('./tmp');
+        if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
+
+        // 📩 Descargar y enviar cada video
         for (let item of data) {
+            const filePath = path.join(tmpDir, `ig-${Date.now()}-${Math.floor(Math.random() * 1000)}.mp4`);
+
+            const videoRes = await axios.get(item.url, { responseType: 'stream' });
+            const writer = fs.createWriteStream(filePath);
+
+            await new Promise((resolve, reject) => {
+                videoRes.data.pipe(writer);
+                writer.on("finish", resolve);
+                writer.on("error", reject);
+            });
+
+            const stats = fs.statSync(filePath);
+            const sizeMB = stats.size / (1024 * 1024);
+
+            if (sizeMB > 99) {
+                fs.unlinkSync(filePath);
+                await sock.sendMessage(msg.key.remoteJid, {
+                    text: `❌ Un video pesa ${sizeMB.toFixed(2)}MB y excede el límite de 99MB.\n\n🔒 No se puede enviar para no saturar los servidores.`
+                }, { quoted: msg });
+                continue;
+            }
+
             await sock.sendMessage(msg.key.remoteJid, { 
-                video: { url: item.url }, 
+                video: fs.readFileSync(filePath), 
+                mimetype: 'video/mp4',
                 caption: caption 
             }, { quoted: msg });
+
+            fs.unlinkSync(filePath);
         }
 
         // ✅ Confirmación con reacción de éxito
@@ -15326,7 +15358,7 @@ case "ig":
         }, { quoted: msg });
     }
     break;
-        
+
 case "tiktok":
 case "tt":
     if (!text) {
@@ -15348,6 +15380,8 @@ case "tt":
         });
 
         const axios = require('axios');
+        const fs = require('fs');
+        const path = require('path');
         const response = await axios.get(`https://api.dorratz.com/v2/tiktok-dl?url=${args[0]}`);
 
         if (!response.data || !response.data.data || !response.data.data.media) {
@@ -15362,22 +15396,47 @@ case "tt":
         const videoLikes = videoData.like || "0";
         const videoComments = videoData.comment || "0";
 
+        // Asegurar carpeta ./tmp
+        const tmpDir = path.resolve('./tmp');
+        if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
+        const filePath = path.join(tmpDir, `tt-${Date.now()}.mp4`);
+
+        // Descargar y guardar
+        const videoRes = await axios.get(videoUrl, { responseType: 'stream' });
+        const writer = fs.createWriteStream(filePath);
+        await new Promise((resolve, reject) => {
+            videoRes.data.pipe(writer);
+            writer.on("finish", resolve);
+            writer.on("error", reject);
+        });
+
+        // Verificar tamaño
+        const stats = fs.statSync(filePath);
+        const sizeMB = stats.size / (1024 * 1024);
+        if (sizeMB > 99) {
+            fs.unlinkSync(filePath);
+            return sock.sendMessage(msg.key.remoteJid, {
+                text: `❌ El archivo pesa ${sizeMB.toFixed(2)}MB y excede el límite de 99MB.\n\n🔒 Solo se permiten descargas menores a 99MB para no saturar los servidores.`
+            }, { quoted: msg });
+        }
+
         // 📜 Mensaje con la información del video
         let mensaje = `🎥 *Video de TikTok* 🎥\n\n`;
         mensaje += `📌 *Título:* ${videoTitle}\n`;
         mensaje += `👤 *Autor:* ${videoAuthor}\n`;
         mensaje += `⏱️ *Duración:* ${videoDuration}\n`;
         mensaje += `❤️ *Likes:* ${videoLikes} | 💬 *Comentarios:* ${videoComments}\n\n`;
-        
-        // 📢 Agregar la API utilizada y marca de agua con buen formato
         mensaje += `───────\n🍧 *API utilizada:* https://api.dorratz.com\n`;
         mensaje += `© Azura Ultra`;
 
-        // 📩 Enviar el video con la información
+        // 📩 Enviar video
         await sock.sendMessage(msg.key.remoteJid, {
-            video: { url: videoUrl },
+            video: fs.readFileSync(filePath),
+            mimetype: 'video/mp4',
             caption: mensaje
         }, { quoted: msg });
+
+        fs.unlinkSync(filePath); // eliminar temporal
 
         // ✅ Reacción de éxito
         await sock.sendMessage(msg.key.remoteJid, { 
@@ -15395,7 +15454,8 @@ case "tt":
             react: { text: "❌", key: msg.key } 
         });
     }
-    break;
+    break;        
+
         
 
 
