@@ -1897,76 +1897,56 @@ case "git": {
 
 
 
-case 'ytmp4': {
-    const axios = require('axios');
-    const fs = require('fs');
-    const path = require('path');
-    const { pipeline } = require('stream');
-    const { promisify } = require('util');
-    const streamPipeline = promisify(pipeline);
 
-    if (!text || (!text.includes('youtube.com') && !text.includes('youtu.be'))) {
-        await sock.sendMessage(msg.key.remoteJid, {
-            text: `✳️ Usa el comando correctamente:\n\n📌 Ejemplo: *${global.prefix}ytmp4* https://youtube.com/watch?v=...`
-        }, { quoted: msg });
-        break;
+  case 'ytmp4': {
+  const axios = require('axios');
+
+  if (!text || (!text.includes('youtube.com') && !text.includes('youtu.be'))) {
+    await sock.sendMessage(msg.key.remoteJid, {
+      text: `✳️ Usa el comando correctamente:\n\n📌 Ejemplo: *${global.prefix}ytmp4* https://youtube.com/watch?v=...`
+    }, { quoted: msg });
+    break;
+  }
+
+  await sock.sendMessage(msg.key.remoteJid, {
+    react: { text: '⏳', key: msg.key }
+  });
+
+  try {
+    const qualities = ['720p', '480p', '360p'];
+    let videoData = null;
+
+    for (let quality of qualities) {
+      try {
+        const apiUrl = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(text)}&type=video&quality=${quality}&apikey=russellxz`;
+        const response = await axios.get(apiUrl);
+        if (response.data?.status && response.data?.data?.url) {
+          videoData = {
+            url: response.data.data.url,
+            title: response.data.title || 'video',
+            quality: response.data.data.quality || quality,
+            size: parseFloat(response.data.data.size) || 0,
+            thumbnail: response.data.thumbnail,
+            duration: response.data.fduration,
+            views: response.data.views,
+            channel: response.data.channel,
+            publish: response.data.publish,
+            id: response.data.id
+          };
+          break;
+        }
+      } catch { continue; }
     }
 
-    await sock.sendMessage(msg.key.remoteJid, {
-        react: { text: '⏳', key: msg.key }
-    });
+    if (!videoData || !videoData.url) throw new Error("No se pudo obtener el video");
 
-    try {
-        const qualities = ['720p', '480p', '360p'];
-        let videoData = null;
+    if (videoData.size > 99) {
+      return await sock.sendMessage(msg.key.remoteJid, {
+        text: `❌ El video pesa ${videoData.size.toFixed(2)}MB y excede el límite de 99MB.`
+      }, { quoted: msg });
+    }
 
-        for (let quality of qualities) {
-            try {
-                const apiUrl = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(text)}&type=video&quality=${quality}&apikey=russellxz`;
-                const response = await axios.get(apiUrl);
-                if (response.data?.status && response.data?.data?.url) {
-                    videoData = {
-                        url: response.data.data.url,
-                        title: response.data.title || 'video',
-                        thumbnail: response.data.thumbnail,
-                        duration: response.data.fduration,
-                        views: response.data.views,
-                        channel: response.data.channel,
-                        quality: response.data.data.quality || quality,
-                        size: response.data.data.size || 'Desconocido',
-                        publish: response.data.publish || 'Desconocido',
-                        id: response.data.id || ''
-                    };
-                    break;
-                }
-            } catch { continue; }
-        }
-
-        if (!videoData) throw new Error('No se pudo obtener el video en ninguna calidad');
-
-        const tmpDir = path.join(__dirname, 'tmp');
-        if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
-
-        const filePath = path.join(tmpDir, `${Date.now()}_video.mp4`);
-
-        // Descargar el video directamente
-        const response = await axios.get(videoData.url, {
-            responseType: 'stream',
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
-        await streamPipeline(response.data, fs.createWriteStream(filePath));
-
-        // Verificar peso
-        const stats = fs.statSync(filePath);
-        const sizeMB = stats.size / (1024 * 1024);
-        if (sizeMB > 99) {
-            fs.unlinkSync(filePath);
-            return await sock.sendMessage(msg.key.remoteJid, {
-                text: `❌ El archivo pesa ${sizeMB.toFixed(2)}MB y excede el límite de 99MB.\n\n🔒 Solo se permiten descargas menores a 99MB para no saturar los servidores.`
-            }, { quoted: msg });
-        }
-
-        const caption = `
+    const caption = `
 ╔═════════════════╗
 ║✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 𝟮.𝟬 𝗕𝗢𝗧 ✦
 ╚═════════════════╝
@@ -1978,41 +1958,30 @@ case 'ytmp4': {
 ├ 👁️ *Vistas:* ${videoData.views}
 ├ 👤 *Canal:* ${videoData.channel}
 ├ 🗓️ *Publicado:* ${videoData.publish}
-├ 📦 *Tamaño:* ${videoData.size}
+├ 📦 *Tamaño:* ${videoData.size.toFixed(2)} MB
 ├ 📹 *Calidad:* ${videoData.quality}
 └ 🔗 *Link:* https://youtu.be/${videoData.id}
 ╰───────────────╯
-┗ ⚠️ *¿No se reproduce?* Usa _${global.prefix}ff_
-
 ⏳ *Procesado por Azura Ultra*`;
 
-        await sock.sendMessage(msg.key.remoteJid, {
-            video: fs.readFileSync(filePath),
-            mimetype: 'video/mp4',
-            fileName: `${videoData.title}.mp4`,
-            caption,
-            gifPlayback: false
-        }, { quoted: msg });
+    await sock.sendMessage(msg.key.remoteJid, {
+      video: { url: videoData.url },
+      caption
+    }, { quoted: msg });
 
-        fs.unlinkSync(filePath);
+    await sock.sendMessage(msg.key.remoteJid, {
+      react: { text: '✅', key: msg.key }
+    });
 
-        await sock.sendMessage(msg.key.remoteJid, {
-            react: { text: '✅', key: msg.key }
-        });
+  } catch (err) {
+    console.error(err);
+    await sock.sendMessage(msg.key.remoteJid, {
+      text: `❌ *Error:* ${err.message}`
+    }, { quoted: msg });
+  }
 
-    } catch (err) {
-        console.error(err);
-        await sock.sendMessage(msg.key.remoteJid, {
-            text: `❌ *Error:* ${err.message}`
-        }, { quoted: msg });
-        await sock.sendMessage(msg.key.remoteJid, {
-            react: { text: '❌', key: msg.key }
-        });
-    }
-
-    break;
-}
-        
+  break;
+}      
       
       
       case 'tiktoksearch': {
@@ -2155,10 +2124,17 @@ case 'ytmp3': {
     }
 
     const { data, title, fduration, thumbnail } = json;
+    const sizeMBFromApi = parseFloat(data.size);
+
+    if (sizeMBFromApi > 99) {
+      return await sock.sendMessage(msg.key.remoteJid, {
+        text: `❌ El audio pesa ${sizeMBFromApi.toFixed(2)}MB y excede el límite de 99MB.\n\n🔒 Solo se permiten descargas menores a 99MB para no saturar los servidores.`
+      }, { quoted: msg });
+    }
 
     await sock.sendMessage(msg.key.remoteJid, {
       image: { url: thumbnail },
-      caption: `🎧 *Título:* ${title}\n🕒 *Duración:* ${fduration}\n📥 *Tamaño:* ${data.size}\n\n⏳ Descargando audio...`
+      caption: `🎧 *Título:* ${title}\n🕒 *Duración:* ${fduration}\n📥 *Tamaño:* ${sizeMBFromApi.toFixed(2)}MB\n\n⏳ Descargando audio...`
     }, { quoted: msg });
 
     const tmpDir = path.join(__dirname, 'tmp');
@@ -2170,7 +2146,6 @@ case 'ytmp3': {
     const audioRes = await axios.get(data.url, { responseType: 'stream' });
     await streamPipeline(audioRes.data, fs.createWriteStream(rawPath));
 
-    // Convertir con FFmpeg
     await new Promise((resolve, reject) => {
       ffmpeg(rawPath)
         .audioCodec('libmp3lame')
@@ -2179,17 +2154,6 @@ case 'ytmp3': {
         .on('end', resolve)
         .on('error', reject);
     });
-
-    // Validar tamaño del archivo final
-    const stats = fs.statSync(finalPath);
-    const sizeMB = stats.size / (1024 * 1024);
-    if (sizeMB > 99) {
-      fs.unlinkSync(rawPath);
-      fs.unlinkSync(finalPath);
-      return await sock.sendMessage(msg.key.remoteJid, {
-        text: `❌ El archivo pesa ${sizeMB.toFixed(2)}MB y excede el límite de 99MB.\n\n🔒 Solo se permiten descargas menores a 99MB para no saturar los servidores.`
-      }, { quoted: msg });
-    }
 
     await sock.sendMessage(msg.key.remoteJid, {
       audio: fs.readFileSync(finalPath),
