@@ -731,9 +731,6 @@ try {
   }
 } catch (err) {
   console.error("❌ Error en respuesta play10:", err);
-  await sock.sendMessage(msg.key.remoteJid, {
-    text: "❌ *Error al procesar su solicitud.*\n\n📦 El archivo puede exceder el límite permitido de 100MB o ocurrió un problema inesperado.\n\n🛑 Inténtelo con otro enlace o use otra calidad."
-  });
 }
 // === FIN DETECTOR DE RESPUESTAS A MENSAJES DEL BOT ===
 // === INICIO GUARDADO ANTIDELETE ===
