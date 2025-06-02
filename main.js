@@ -1241,147 +1241,7 @@ case 'carga': {
   });
   break;
 }
-      
-    
-case 'play222': {
-    const axios = require('axios');
-    const fs = require('fs');
-    const path = require('path');
-    const { pipeline } = require('stream');
-    const { promisify } = require('util');
-    const streamPipeline = promisify(pipeline);
-
-    if (!text) {
-        await sock.sendMessage(msg.key.remoteJid, {
-            text: `✳️ Usa el comando correctamente:\n\n📌 Ejemplo: *${global.prefix}play2* La Factoría - Perdoname`
-        }, { quoted: msg });
-        break;
-    }
-
-    await sock.sendMessage(msg.key.remoteJid, {
-        react: { text: '⏳', key: msg.key }
-    });
-
-    try {
-        // 1. BUSQUEDA: Usamos el título para buscar el video
-        const searchUrl = `https://api.neoxr.eu/api/video?q=${encodeURIComponent(text)}&apikey=russellxz`;
-        const searchRes = await axios.get(searchUrl);
-        const videoInfo = searchRes.data;
-        if (!videoInfo || !videoInfo.data?.url) 
-            throw new Error('No se pudo encontrar el video');
-
-        const title = videoInfo.title || 'video';
-        const thumbnail = videoInfo.thumbnail;
-        const duration = videoInfo.fduration || '0:00';
-        const views = videoInfo.views || 'N/A';
-        const author = videoInfo.channel || 'Desconocido';
-        const videoLink = `https://www.youtube.com/watch?v=${videoInfo.id}`;
-
-        // 2. BANNER: Enviamos la vista previa con la info
-        const captionPreview = `
-╔═════════════════╗
-║✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝗹𝗍𝗋𝗮 ✦
-╚═════════════════╝
-
-📀 *𝙄𝗻𝗳𝗼 𝗱𝗲𝗹 𝘃𝗶𝗱𝗲𝗼:*  
-╭───────────────╮  
-├ 🎼 *Título:* ${title}
-├ ⏱️ *Duración:* ${duration}
-├ 👁️ *Vistas:* ${views}
-├ 👤 *Autor:* ${author}
-└ 🔗 *Link:* ${videoLink}
-╰───────────────╯
-
-📥 *Opciones de Descarga:*  
-┣ 🎵 *Audio:* _${global.prefix}play1 ${text}_
-┣ 🎵 *Audio:* _${global.prefix}play5 ${text}_
-┣ 🎥 *Video:* _${global.prefix}play2 ${text}_
-┣ 🎥 *Video:* _${global.prefix}play6 ${text}_
-┗ ⚠️ *¿No se reproduce?* Usa _${global.prefix}ff_
-
-⏳ *Procesado por Azura Ultra*
-═════════════════════  
-   𖥔 Azura Ultra  𖥔
-═════════════════════`;
         
-        await sock.sendMessage(msg.key.remoteJid, {
-            image: { url: thumbnail },
-            caption: captionPreview
-        }, { quoted: msg });
-
-        // 3. DESCARGA: Usamos la lógica de ytmp4 para descargar el video
-        const qualities = ['720p', '480p', '360p'];
-        let videoData = null;
-        for (let quality of qualities) {
-            try {
-                const apiUrl = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(videoLink)}&apikey=russellxz&type=video&quality=${quality}`;
-                const response = await axios.get(apiUrl);
-                if (response.data?.status && response.data?.data?.url) {
-                    videoData = {
-                        url: response.data.data.url,
-                        title: response.data.title || title,
-                        thumbnail: response.data.thumbnail || thumbnail,
-                        duration: response.data.fduration || duration,
-                        views: response.data.views || views,
-                        channel: response.data.channel || author,
-                        quality: response.data.data.quality || quality,
-                        size: response.data.data.size || 'Desconocido',
-                        publish: response.data.publish || 'Desconocido',
-                        id: response.data.id || videoInfo.id
-                    };
-                    break;
-                }
-            } catch { continue; }
-        }
-        if (!videoData) throw new Error('No se pudo obtener el video en ninguna calidad');
-
-        const tmpDir = path.join(__dirname, 'tmp');
-        if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
-        const filename = `${Date.now()}_video.mp4`;
-        const filePath = path.join(tmpDir, filename);
-
-        const resDownload = await axios.get(videoData.url, {
-            responseType: 'stream',
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
-        await streamPipeline(resDownload.data, fs.createWriteStream(filePath));
-
-        const stats = fs.statSync(filePath);
-        if (!stats || stats.size < 100000) {
-            fs.unlinkSync(filePath);
-            throw new Error('El video descargado está vacío o incompleto');
-        }
-
-        const finalText = `🎬 Aquí tiene su video.\n\nDisfrútelo y continúe explorando el mundo digital.\n\n© Azura Ultra`;
-
-        await sock.sendMessage(msg.key.remoteJid, {
-            video: fs.readFileSync(filePath),
-            mimetype: 'video/mp4',
-            fileName: `${videoData.title}.mp4`,
-            caption: finalText,
-            gifPlayback: false
-        }, { quoted: msg });
-
-        fs.unlinkSync(filePath);
-
-        await sock.sendMessage(msg.key.remoteJid, {
-            react: { text: '✅', key: msg.key }
-        });
-
-    } catch (err) {
-        console.error(err);
-        await sock.sendMessage(msg.key.remoteJid, {
-            text: `❌ *Error:* ${err.message}`
-        }, { quoted: msg });
-        await sock.sendMessage(msg.key.remoteJid, {
-            react: { text: '❌', key: msg.key }
-        });
-    }
-
-    break;
-}
-        
-  
       
 case 'whatmusic': {
     const fs = require('fs');
@@ -2035,122 +1895,7 @@ case "git": {
     break;
 }
 
-        
-case 'play11': {
-    const axios = require('axios');
-    const yts = require('yt-search');
-    const fs = require('fs');
-    const path = require('path');
-    const ffmpeg = require('fluent-ffmpeg');
-    const { pipeline } = require('stream');
-    const { promisify } = require('util');
-    const streamPipeline = promisify(pipeline);
 
-    if (!text) {
-        await sock.sendMessage(msg.key.remoteJid, {
-            text: `✳️ Usa el comando correctamente:\n\n📌 Ejemplo: *${global.prefix}play* bad bunny diles`
-        }, { quoted: msg });
-        break;
-    }
-
-    await sock.sendMessage(msg.key.remoteJid, {
-        react: { text: '⏳', key: msg.key }
-    });
-
-    try {
-        const search = await yts(text);
-        const video = search.videos[0];
-        if (!video) throw new Error('No se encontraron resultados');
-
-        const videoUrl = video.url;
-        const thumbnail = video.thumbnail;
-        const title = video.title;
-        const fduration = video.timestamp;
-        const views = video.views.toLocaleString();
-        const channel = video.author.name || 'Desconocido';
-
-        const infoMessage = `
-╔══════════════════╗
-║  ✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼  ✦
-╚══════════════════╝
-
-📀 *𝙄𝙣𝙛𝙤 𝙙𝙚𝙡 𝙖𝙪𝙙𝙞𝙤:*  
-╭───────────────╮  
-├ 🎼 *Título:* ${title}
-├ ⏱️ *Duración:* ${fduration}
-├ 👁️ *Vistas:* ${views}
-├ 👤 *Autor:* ${channel}
-└ 🔗 *Enlace:* ${videoUrl}
-╰───────────────╯
-
-📥 *Opciones de Descarga:*  
-┣ 🎵 *Audio:* _${global.prefix}play1 ${text}_
-┣ 🎵 *Audio:* _${global.prefix}play5 ${text}_
-┣ 🎥 *video:* _${global.prefix}play2 ${text}_
-┗ 🎥 *Video:* _${global.prefix}play6 ${text}_
-
-⏳ *Espera un momento...*  
-⚙️ *Azura Ultra  está procesando tu música...*
-═══════════════════  
-     𖥔 Azura Ultra 𖥔`;
-
-        await sock.sendMessage(msg.key.remoteJid, {
-            image: { url: thumbnail },
-            caption: infoMessage
-        }, { quoted: msg });
-
-        // Descargar el audio desde la API
-        const apiURL = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(videoUrl)}&type=audio&quality=128kbps&apikey=russellxz`;
-        const res = await axios.get(apiURL);
-        const json = res.data;
-
-        if (!json.status || !json.data?.url) throw new Error("No se pudo obtener el audio");
-
-        const tmpDir = path.join(__dirname, 'tmp');
-        if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
-
-        const rawPath = path.join(tmpDir, `${Date.now()}_raw.m4a`);
-        const finalPath = path.join(tmpDir, `${Date.now()}_final.mp3`);
-
-        const audioRes = await axios.get(json.data.url, { responseType: 'stream' });
-        await streamPipeline(audioRes.data, fs.createWriteStream(rawPath));
-
-        // Convertir con FFmpeg
-        await new Promise((resolve, reject) => {
-            ffmpeg(rawPath)
-                .audioCodec('libmp3lame')
-                .audioBitrate('128k')
-                .format('mp3')
-                .save(finalPath)
-                .on('end', resolve)
-                .on('error', reject);
-        });
-
-        await sock.sendMessage(msg.key.remoteJid, {
-            audio: fs.readFileSync(finalPath),
-            mimetype: 'audio/mpeg',
-            fileName: `${title}.mp3`
-        }, { quoted: msg });
-
-        fs.unlinkSync(rawPath);
-        fs.unlinkSync(finalPath);
-
-        await sock.sendMessage(msg.key.remoteJid, {
-            react: { text: '✅', key: msg.key }
-        });
-
-    } catch (err) {
-        console.error(err);
-        await sock.sendMessage(msg.key.remoteJid, {
-            text: `❌ *Error:* ${err.message}`
-        }, { quoted: msg });
-        await sock.sendMessage(msg.key.remoteJid, {
-            react: { text: '❌', key: msg.key }
-        });
-    }
-
-    break;
-}
 
 case 'ytmp4': {
     const axios = require('axios');
@@ -2211,11 +1956,14 @@ case 'ytmp4': {
         });
         await streamPipeline(response.data, fs.createWriteStream(filePath));
 
-        // Verificar si el archivo tiene buen tamaño
+        // Verificar peso
         const stats = fs.statSync(filePath);
-        if (!stats || stats.size < 100000) {
+        const sizeMB = stats.size / (1024 * 1024);
+        if (sizeMB > 99) {
             fs.unlinkSync(filePath);
-            throw new Error('El video descargado está vacío o incompleto');
+            return await sock.sendMessage(msg.key.remoteJid, {
+                text: `❌ El archivo pesa ${sizeMB.toFixed(2)}MB y excede el límite de 99MB.\n\n🔒 Solo se permiten descargas menores a 99MB para no saturar los servidores.`
+            }, { quoted: msg });
         }
 
         const caption = `
@@ -2264,6 +2012,7 @@ case 'ytmp4': {
 
     break;
 }
+        
       
       
       case 'tiktoksearch': {
@@ -2430,6 +2179,17 @@ case 'ytmp3': {
         .on('end', resolve)
         .on('error', reject);
     });
+
+    // Validar tamaño del archivo final
+    const stats = fs.statSync(finalPath);
+    const sizeMB = stats.size / (1024 * 1024);
+    if (sizeMB > 99) {
+      fs.unlinkSync(rawPath);
+      fs.unlinkSync(finalPath);
+      return await sock.sendMessage(msg.key.remoteJid, {
+        text: `❌ El archivo pesa ${sizeMB.toFixed(2)}MB y excede el límite de 99MB.\n\n🔒 Solo se permiten descargas menores a 99MB para no saturar los servidores.`
+      }, { quoted: msg });
+    }
 
     await sock.sendMessage(msg.key.remoteJid, {
       audio: fs.readFileSync(finalPath),
