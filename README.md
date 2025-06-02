@@ -1,4 +1,4 @@
-# 🌟 𝐀𝐙𝐔𝐑𝐀 𝐔𝐋𝐓𝐑𝐀 & 𝐂𝐎𝐑𝐓𝐀𝐍𝐀🌟  
+# 🌟 𝐀𝐙𝐔𝐑𝐀 𝐔𝐋𝐓𝐑𝐀🌟  
 🔥 **El bot definitivo para grupos de WhatsApp con sistema RPG, administración avanzada y más.**  
 
 ≪━─━─━─━─◈─━─━─━─━≫  
@@ -13,8 +13,8 @@
 ✧ » ◇ « ✧ » ✦ « ✧ » ◇ « ✧  
 ≪━─━─━─━─◈─━─━─━─━≫  
 
-## 🚀 **¿Qué es Azura Ultra & Cortana?**  
-**Azura Ultra & Cortana** es un bot **multifuncional y poderoso** diseñado para mejorar la experiencia en tus grupos de WhatsApp.  
+## 🚀 **¿Qué es Azura Ultra?**  
+**Azura Ultra** es un bot **multifuncional y poderoso** diseñado para mejorar la experiencia en tus grupos de WhatsApp.  
 
 Incluye **sistema RPG**, herramientas de **moderación avanzada**, **minijuegos**, **descargas**, inteligencia integrada y mucho más.  
 
@@ -63,7 +63,7 @@ Incluye **sistema RPG**, herramientas de **moderación avanzada**, **minijuegos*
 ## 👑 **Creador y colaboradores**  
 
 💻 **𝐃𝐞𝐬𝐚𝐫𝐫𝐨𝐥𝐥𝐚𝐝𝐨𝐫 𝐩𝐫𝐢𝐧𝐜𝐢𝐩𝐚𝐥:**  
-- 👑 **Russell XZ** (Creador de Azura Ultra & Cortana)  
+- 👑 **Russell XZ** (Creador de Azura Ultra)  
 
 🤖 **𝐂𝐨𝐥𝐚𝐛𝐨𝐫𝐚𝐝𝐨𝐫𝐞𝐬:**  
 - 🔹 [DIEGO-OFC](https://github.com/DIEGO-OFC)  
