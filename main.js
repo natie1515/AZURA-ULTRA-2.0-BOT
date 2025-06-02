@@ -1938,7 +1938,7 @@ case "git": {
       } catch { continue; }
     }
 
-    if (!videoData || !videoData.url) throw new Error("No se pudo obtener el video");
+    if (!videoData || !videoData.url) throw new Error("No se pudo obtener el video talvez excede el límite de 99MB");
 
     if (videoData.size > 99) {
       return await sock.sendMessage(msg.key.remoteJid, {
@@ -2096,9 +2096,7 @@ case 'ytmp3': {
   const fs = require('fs');
   const path = require('path');
   const ffmpeg = require('fluent-ffmpeg');
-  const { promisify } = require('util');
-  const { pipeline } = require('stream');
-  const streamPipeline = promisify(pipeline);
+  const { PassThrough } = require('stream');
 
   const isYoutubeUrl = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|music\.youtube\.com)\//i.test(text);
 
@@ -2119,7 +2117,6 @@ case 'ytmp3': {
     const json = res.data;
 
     if (!json.status || !json.data?.url) {
-      console.log('Respuesta de la API:', JSON.stringify(json, null, 2));
       throw new Error("No se pudo obtener el audio");
     }
 
@@ -2134,39 +2131,40 @@ case 'ytmp3': {
 
     await sock.sendMessage(msg.key.remoteJid, {
       image: { url: thumbnail },
-      caption: `🎧 *Título:* ${title}\n🕒 *Duración:* ${fduration}\n📥 *Tamaño:* ${sizeMBFromApi.toFixed(2)}MB\n\n⏳ Descargando audio...`
+      caption: `🎧 *Título:* ${title}\n🕒 *Duración:* ${fduration}\n📥 *Tamaño:* ${sizeMBFromApi.toFixed(2)}MB\n\n⏳ Procesando audio...`
     }, { quoted: msg });
 
-    const tmpDir = path.join(__dirname, 'tmp');
-    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
+    const response = await axios.get(data.url, { responseType: 'stream' });
+    const streamInput = new PassThrough();
+    const buffers = [];
 
-    const rawPath = path.join(tmpDir, `${Date.now()}_raw.m4a`);
-    const finalPath = path.join(tmpDir, `${Date.now()}_final.mp3`);
+    // Procesar el stream con ffmpeg
+    ffmpeg(response.data)
+      .audioCodec('libmp3lame')
+      .audioBitrate('128k')
+      .format('mp3')
+      .on('error', err => {
+        console.error(err);
+        sock.sendMessage(msg.key.remoteJid, {
+          text: `❌ Error procesando audio Talvez excede el límite de 99MB: ${err.message}`
+        }, { quoted: msg });
+      })
+      .on('end', async () => {
+        const finalBuffer = Buffer.concat(buffers);
+        await sock.sendMessage(msg.key.remoteJid, {
+          audio: finalBuffer,
+          mimetype: 'audio/mpeg',
+          fileName: `${title}.mp3`
+        }, { quoted: msg });
 
-    const audioRes = await axios.get(data.url, { responseType: 'stream' });
-    await streamPipeline(audioRes.data, fs.createWriteStream(rawPath));
+        await sock.sendMessage(msg.key.remoteJid, {
+          react: { text: '✅', key: msg.key }
+        });
+      })
+      .pipe(streamInput);
 
-    await new Promise((resolve, reject) => {
-      ffmpeg(rawPath)
-        .audioCodec('libmp3lame')
-        .audioBitrate('128k')
-        .save(finalPath)
-        .on('end', resolve)
-        .on('error', reject);
-    });
-
-    await sock.sendMessage(msg.key.remoteJid, {
-      audio: fs.readFileSync(finalPath),
-      mimetype: 'audio/mpeg',
-      fileName: data.filename || `${title}.mp3`
-    }, { quoted: msg });
-
-    fs.unlinkSync(rawPath);
-    fs.unlinkSync(finalPath);
-
-    await sock.sendMessage(msg.key.remoteJid, {
-      react: { text: '✅', key: msg.key }
-    });
+    // Acumular chunks en buffer para enviar sin archivo
+    streamInput.on('data', chunk => buffers.push(chunk));
 
   } catch (err) {
     console.error(err);
