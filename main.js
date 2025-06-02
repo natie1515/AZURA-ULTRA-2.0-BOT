@@ -15457,11 +15457,10 @@ case "fb":
         // 📜 Construcción del mensaje con resoluciones disponibles
         const message = `Resoluciones disponibles:\n${results.map((res) => `- ${res.resolution}`).join('\n')}\n\n🔥 Enviado en 720p\n\n> 🍧 Solicitud procesada por api.dorratz.com\n\n───────\n© Azura Ultra`;
 
-        // 📩 Enviar el video como documento
+        // 📩 Enviar el video como normal
         await sock.sendMessage(msg.key.remoteJid, {
-            document: fs.readFileSync(filePath),
+            video: fs.readFileSync(filePath),
             mimetype: 'video/mp4',
-            fileName: 'facebook_video.mp4',
             caption: message
         }, { quoted: msg });
 
