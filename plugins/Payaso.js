@@ -53,7 +53,7 @@ const handler = async (msg, { conn }) => {
 
     await conn.sendMessage(chat, {
       image: finalBuffer,
-      caption: "🤡 *Aquí tienes tu versión payasa.*\n\n© azura ultra & cortana"
+      caption: "🤡 *Aquí tienes tu versión payasa.*\n\n© azura ultra"
     }, { quoted: msg });
 
   } catch (err) {
