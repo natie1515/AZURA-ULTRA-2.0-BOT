@@ -7,7 +7,7 @@ const handler = async (msg, { conn }) => {
     await conn.sendMessage(chatId, { react: { text: "📋", key: msg.key } });
 
     // Imagen fija del menú
-    const imgUrl = 'https://cdn.russellxz.click/92980869.jpeg';
+    const imgUrl = 'https://cdn.russellxz.click/706326cf.jpeg';
 
     // Menú con marca de agua al final
     const texto = `╭──────>⋆☽⋆⋆☾⋆<──────╮
