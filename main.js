@@ -1896,57 +1896,73 @@ case "git": {
 }
 
 
+case 'ytmp4': {
+    const axios = require('axios');
+    const fs = require('fs');
+    const path = require('path');
+    const { pipeline } = require('stream');
+    const { promisify } = require('util');
+    const streamPipeline = promisify(pipeline);
 
+    if (!text || (!text.includes('youtube.com') && !text.includes('youtu.be'))) {
+        await sock.sendMessage(msg.key.remoteJid, {
+            text: `✳️ Usa el comando correctamente:\n\n📌 Ejemplo: *${global.prefix}ytmp4* https://youtube.com/watch?v=...`
+        }, { quoted: msg });
+        break;
+    }
 
-  case 'ytmp4': {
-  const axios = require('axios');
-
-  if (!text || (!text.includes('youtube.com') && !text.includes('youtu.be'))) {
     await sock.sendMessage(msg.key.remoteJid, {
-      text: `✳️ Usa el comando correctamente:\n\n📌 Ejemplo: *${global.prefix}ytmp4* https://youtube.com/watch?v=...`
-    }, { quoted: msg });
-    break;
-  }
+        react: { text: '⏳', key: msg.key }
+    });
 
-  await sock.sendMessage(msg.key.remoteJid, {
-    react: { text: '⏳', key: msg.key }
-  });
+    try {
+        const qualities = ['720p', '480p', '360p'];
+        let videoData = null;
 
-  try {
-    const qualities = ['720p', '480p', '360p'];
-    let videoData = null;
-
-    for (let quality of qualities) {
-      try {
-        const apiUrl = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(text)}&type=video&quality=${quality}&apikey=russellxz`;
-        const response = await axios.get(apiUrl);
-        if (response.data?.status && response.data?.data?.url) {
-          videoData = {
-            url: response.data.data.url,
-            title: response.data.title || 'video',
-            quality: response.data.data.quality || quality,
-            size: parseFloat(response.data.data.size) || 0,
-            thumbnail: response.data.thumbnail,
-            duration: response.data.fduration,
-            views: response.data.views,
-            channel: response.data.channel,
-            publish: response.data.publish,
-            id: response.data.id
-          };
-          break;
+        for (let quality of qualities) {
+            try {
+                const apiUrl = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(text)}&type=video&quality=${quality}&apikey=russellxz`;
+                const response = await axios.get(apiUrl);
+                if (response.data?.status && response.data?.data?.url) {
+                    videoData = {
+                        url: response.data.data.url,
+                        title: response.data.title || 'video',
+                        thumbnail: response.data.thumbnail,
+                        duration: response.data.fduration,
+                        views: response.data.views,
+                        channel: response.data.channel,
+                        quality: response.data.data.quality || quality,
+                        size: response.data.data.size || 'Desconocido',
+                        publish: response.data.publish || 'Desconocido',
+                        id: response.data.id || ''
+                    };
+                    break;
+                }
+            } catch { continue; }
         }
-      } catch { continue; }
-    }
 
-    if (!videoData || !videoData.url) throw new Error("No se pudo obtener el video talvez excede el límite de 99MB");
+        if (!videoData) throw new Error('No se pudo obtener el video en ninguna calidad Talvez excede el límite de 99MB');
 
-    if (videoData.size > 99) {
-      return await sock.sendMessage(msg.key.remoteJid, {
-        text: `❌ El video pesa ${videoData.size.toFixed(2)}MB y excede el límite de 99MB.`
-      }, { quoted: msg });
-    }
+        const tmpDir = path.join(__dirname, 'tmp');
+        if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
 
-    const caption = `
+        const filePath = path.join(tmpDir, `${Date.now()}_video.mp4`);
+
+        // Descargar el video directamente
+        const response = await axios.get(videoData.url, {
+            responseType: 'stream',
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        await streamPipeline(response.data, fs.createWriteStream(filePath));
+
+        // Verificar si el archivo tiene buen tamaño
+        const stats = fs.statSync(filePath);
+        if (!stats || stats.size < 100000) {
+            fs.unlinkSync(filePath);
+            throw new Error('El video descargado está vacío o incompleto');
+        }
+
+        const caption = `
 ╔═════════════════╗
 ║✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 𝟮.𝟬 𝗕𝗢𝗧 ✦
 ╚═════════════════╝
@@ -1958,30 +1974,41 @@ case "git": {
 ├ 👁️ *Vistas:* ${videoData.views}
 ├ 👤 *Canal:* ${videoData.channel}
 ├ 🗓️ *Publicado:* ${videoData.publish}
-├ 📦 *Tamaño:* ${videoData.size.toFixed(2)} MB
+├ 📦 *Tamaño:* ${videoData.size}
 ├ 📹 *Calidad:* ${videoData.quality}
 └ 🔗 *Link:* https://youtu.be/${videoData.id}
 ╰───────────────╯
+┗ ⚠️ *¿No se reproduce?* Usa _${global.prefix}ff_
+
 ⏳ *Procesado por Azura Ultra*`;
 
-    await sock.sendMessage(msg.key.remoteJid, {
-      video: { url: videoData.url },
-      caption
-    }, { quoted: msg });
+        await sock.sendMessage(msg.key.remoteJid, {
+            video: fs.readFileSync(filePath),
+            mimetype: 'video/mp4',
+            fileName: `${videoData.title}.mp4`,
+            caption,
+            gifPlayback: false
+        }, { quoted: msg });
 
-    await sock.sendMessage(msg.key.remoteJid, {
-      react: { text: '✅', key: msg.key }
-    });
+        fs.unlinkSync(filePath);
 
-  } catch (err) {
-    console.error(err);
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: `❌ *Error:* ${err.message}`
-    }, { quoted: msg });
-  }
+        await sock.sendMessage(msg.key.remoteJid, {
+            react: { text: '✅', key: msg.key }
+        });
 
-  break;
-}      
+    } catch (err) {
+        console.error(err);
+        await sock.sendMessage(msg.key.remoteJid, {
+            text: `❌ *Error:* ${err.message}`
+        }, { quoted: msg });
+        await sock.sendMessage(msg.key.remoteJid, {
+            react: { text: '❌', key: msg.key }
+        });
+    }
+
+    break;
+}
+
       
       
       case 'tiktoksearch': {
@@ -2349,7 +2376,7 @@ case 'play5': {
 
         const infoMessage = `
 ╔══════════════════╗
-║  ✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 ✦   
+║  ✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 BOT 2.0 ✦   
 ╚══════════════════╝
 
 📀 *𝙄𝙣𝙛𝙤 𝙙𝙚𝙡 𝙫𝙞𝙙𝙚𝙤:*  
@@ -2371,7 +2398,7 @@ case 'play5': {
 ⚙️ *Azura Ultra 2.0 está procesando tu música...*
 
 ═════════════════════  
-         𖥔 𝗔𝘇𝘂𝗋𝗮 𝗨𝗹𝘁𝗋𝗮 𖥔
+     𖥔 𝗔𝘇𝘂𝗋𝗮 𝗨𝗹𝘁𝗋𝗮 2.0 BOT 𖥔
 ═════════════════════`;
 
         await sock.sendMessage(msg.key.remoteJid, {
@@ -2421,7 +2448,7 @@ case 'play5': {
     } catch (err) {
         console.error(err);
         await sock.sendMessage(msg.key.remoteJid, {
-            text: `❌ *Error:* ${err.message}`
+            text: `❌ *Error Talvez excede el límite de 99MB:* ${err.message}`
         }, { quoted: msg });
 
         await sock.sendMessage(msg.key.remoteJid, {
@@ -2528,7 +2555,7 @@ case 'play6': {
 
         const infoMessage = `
 ╔══════════════════╗
-║✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼     ✦   ║
+║✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 2.0 BOT  ✦   
 ╚══════════════════╝
 
 📀 *𝙄𝙣𝙛𝙤 𝙙𝙚𝙡 𝙫𝙞𝙙𝙚𝙤:*  
@@ -2550,7 +2577,7 @@ case 'play6': {
 ⚙️ *Azura Ultra 2.0 está procesando tu video...*
 
 ═════════════════════  
-         𖥔 𝗔𝘇𝘂𝗋𝗮 𝗨𝗹𝘁𝗋𝗮 𖥔
+     𖥔 𝗔𝘇𝘂𝗋𝗮 𝗨𝗹𝘁𝗋𝗮 2.0 BOT𖥔
 ═════════════════════`;
 
         await sock.sendMessage(msg.key.remoteJid, {
@@ -2621,7 +2648,7 @@ Disfrútelo y continúe explorando el mundo digital.
     } catch (err) {
         console.error(err);
         await sock.sendMessage(msg.key.remoteJid, {
-            text: `❌ *Error:* ${err.message}`
+            text: `❌ *Error Talvez excede el límite de 99MB:* ${err.message}`
         }, { quoted: msg });
         await sock.sendMessage(msg.key.remoteJid, {
             react: { text: '❌', key: msg.key }
@@ -2745,7 +2772,7 @@ case 'play1': {
     } catch (error) {
         console.error(error);
         await sock.sendMessage(msg.key.remoteJid, {
-            text: "⚠️ Hubo un pequeño error :("
+            text: "⚠️ Hubo un pequeño error Talvez excede el límite de 99MB:("
         }, { quoted: msg });
     }
 
