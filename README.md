@@ -6,7 +6,7 @@
 ≪━─━─━─━─◈─━─━─━─━≫  
 
 <p align="center">
-  <img src="https://cdn.russellxz.click/7fbbb296.PNG" alt="Azura Ultra & Cortana Bot" width="500"/>
+  <img src="[https://cdn.russellxz.click/7fbbb296.PNG](https://cdn.russellxz.click/6984cf1b.jpeg)" alt="Azura Ultra & Cortana Bot" width="500"/>
 </p>
 
 ≪━─━─━─━─◈─━─━─━─━≫  
