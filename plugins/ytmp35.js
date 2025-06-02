@@ -156,7 +156,7 @@ const handler = async (msg, { conn, text }) => {
         console.error('Error en ytmp35:', err);
         
         await conn.sendMessage(msg.key.remoteJid, {
-            text: `❌ *Error al procesar el audio:*\n${err.message}`
+            text: `❌ *Error al procesar el audio Talvez excede el límite de 99MB:*\n${err.message}`
         }, { quoted: msg });
 
         await conn.sendMessage(msg.key.remoteJid, {
