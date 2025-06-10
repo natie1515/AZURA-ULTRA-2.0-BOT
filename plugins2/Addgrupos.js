@@ -6,25 +6,25 @@ const handler = async (msg, { conn }) => {
     react: { text: "➕", key: msg.key }
   });
 
-  const fromMe = msg.key.fromMe;
-  if (!fromMe) return await conn.sendMessage(msg.key.remoteJid, {
-    text: "⛔ Solo el *dueño del subbot* puede usar este comando."
-  }, { quoted: msg });
-
   const groupID = msg.key.remoteJid;
   if (!groupID.endsWith("@g.us")) {
     return await conn.sendMessage(groupID, {
-      text: "⚠️ Este comando solo funciona dentro de un grupo. y es para que subbots responda en ese grupo donde uses este comando💠"
+      text: "⚠️ Este comando solo se puede usar dentro de un grupo.\n\n🛠️ *Sirve para activar el subbot en este grupo*."
     }, { quoted: msg });
   }
 
   const rawID = conn.user?.id || "";
   const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
-  const filePath = path.resolve("grupo.json");
+
+  const filePath = path.join(process.cwd(), "grupo.json");
   let data = {};
 
   if (fs.existsSync(filePath)) {
-    data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    try {
+      data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    } catch {
+      data = {};
+    }
   }
 
   if (!Array.isArray(data[subbotID])) {
@@ -33,7 +33,7 @@ const handler = async (msg, { conn }) => {
 
   if (data[subbotID].includes(groupID)) {
     return await conn.sendMessage(groupID, {
-      text: "ℹ️ Este grupo ya está autorizado."
+      text: "ℹ️ Este grupo ya está autorizado para usar el subbot."
     }, { quoted: msg });
   }
 
@@ -41,7 +41,7 @@ const handler = async (msg, { conn }) => {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 
   await conn.sendMessage(groupID, {
-    text: `✅ Grupo autorizado correctamente a hora el subbots respondera a usuarios en este grupo💠.`
+    text: "✅ *Grupo autorizado correctamente.* Ahora el subbot responderá a todos los usuarios en este grupo. 💠"
   }, { quoted: msg });
 };
 
