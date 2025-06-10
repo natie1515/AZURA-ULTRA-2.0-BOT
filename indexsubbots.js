@@ -71,26 +71,28 @@ async function cargarSubbots() {
 
         subSock.ev.on("creds.update", saveCreds);
 
-        subSock.ev.on("connection.update", async ({ connection }) => {
-          if (connection === "open") {
-            console.log(`✅ Subbot ${dir} conectado.`);
-            if (reconnectionTimer) {
-              clearTimeout(reconnectionTimer);
-              reconnectionTimer = null;
-            }
-          } else if (connection === "close") {
-            console.log(`❌ Subbot ${dir} desconectado. Esperando 1 minuto antes de eliminar sesión...`);
+        subSock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
+  if (connection === "open") {
+    console.log(`✅ Subbot ${dir} conectado.`);
+    if (reconnectionTimer) {
+      clearTimeout(reconnectionTimer);
+      reconnectionTimer = null;
+    }
+  } else if (connection === "close") {
+    const statusCode = lastDisconnect?.error?.output?.statusCode;
 
-            reconnectionTimer = setTimeout(() => {
-              if (fs.existsSync(sessionPath)) {
-                fs.rmSync(sessionPath, { recursive: true, force: true });
-                console.log(`🗑️ Subbot ${dir} eliminado por desconexión prolongada.`);
-              }
-            }, 60_000);
+    console.log(`❌ Subbot ${dir} desconectado (status: ${statusCode}). Esperando 1 minuto antes de eliminar sesión...`);
 
-            setTimeout(() => iniciarSubbot(), 5000);
-          }
-        });
+    reconnectionTimer = setTimeout(() => {
+      if (fs.existsSync(sessionPath)) {
+        fs.rmSync(sessionPath, { recursive: true, force: true });
+        console.log(`🗑️ Subbot ${dir} eliminado por desconexión prolongada.`);
+      }
+    }, 60_000);
+
+    setTimeout(() => iniciarSubbot(), 5000);
+  }
+});
 
         subSock.ev.on("messages.upsert", async msg => {
           const m = msg.messages[0];
