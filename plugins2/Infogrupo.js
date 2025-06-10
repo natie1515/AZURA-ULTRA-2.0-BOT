@@ -1,27 +1,45 @@
-const handler = async (msg, { conn }) => {
-  const chatId = msg.key.remoteJid;
+const fs = require("fs");
+const path = require("path");
 
-  if (!chatId.endsWith("@g.us")) {
-    return await conn.sendMessage(chatId, {
-      text: "⚠️ Este comando solo funciona en grupos."
+const handler = async (msg, { conn }) => {
+  const rawID = conn.user?.id || "";
+  const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
+
+  const prefixPath = path.resolve("prefixes.json");
+  let prefixes = {};
+  if (fs.existsSync(prefixPath)) {
+    prefixes = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
+  }
+  const usedPrefix = prefixes[subbotID] || ".";
+
+  if (!msg.key.remoteJid.endsWith("@g.us")) {
+    return await conn.sendMessage(msg.key.remoteJid, {
+      text: "⚠️ *Este comando solo funciona en grupos.*"
     }, { quoted: msg });
   }
 
-  await conn.sendMessage(chatId, {
-    react: { text: "📝", key: msg.key }
+  await conn.sendMessage(msg.key.remoteJid, {
+    react: { text: "🔍", key: msg.key }
   });
 
   try {
-    const metadata = await conn.groupMetadata(chatId);
-    const groupDesc = metadata.desc || "Este grupo no tiene descripción.";
+    const meta = await conn.groupMetadata(msg.key.remoteJid);
+    const subject = meta.subject || "Sin nombre";
+    const description = meta.desc || "No hay descripción.";
 
-    await conn.sendMessage(chatId, {
-      text: `📄 *Descripción del grupo:*\n\n${groupDesc}`
+    const messageText = `*Información del Grupo:*\n\n*Nombre:* ${subject}\n*Descripción:* ${description}`;
+
+    await conn.sendMessage(msg.key.remoteJid, {
+      text: messageText
     }, { quoted: msg });
 
-  } catch (e) {
-    await conn.sendMessage(chatId, {
-      text: "❌ Error al obtener la descripción del grupo."
+    await conn.sendMessage(msg.key.remoteJid, {
+      react: { text: "✅", key: msg.key }
+    });
+
+  } catch {
+    await conn.sendMessage(msg.key.remoteJid, {
+      text: "❌ *Error al obtener la información del grupo.*"
     }, { quoted: msg });
   }
 };

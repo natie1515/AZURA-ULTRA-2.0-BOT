@@ -3,15 +3,13 @@ const hispamemes = require("hispamemes");
 const handler = async (msg, { conn }) => {
   try {
     const meme = hispamemes.meme();
-
-    // 🔄 Reacción antes de enviar el meme
     await conn.sendMessage(msg.key.remoteJid, {
       react: { text: "😆", key: msg.key }
     });
 
     await conn.sendMessage(msg.key.remoteJid, {
       image: { url: meme },
-      caption: "🤣 *¡Aquí tienes un meme!*\n\n© Azura Ultra & Cortana subbots"
+      caption: "🤣 *¡Aquí tienes un meme!*\n\n© Azura Ultra 2.0 subbots"
     }, { quoted: msg });
 
   } catch (e) {
