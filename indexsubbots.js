@@ -97,19 +97,17 @@ async function cargarSubbots() {
 
 subSock.ev.on("group-participants.update", async (update) => {
   try {
-    if (!subbotInstances[dir].isConnected) return;
     if (!update.id.endsWith("@g.us")) return;
 
     const chatId = update.id;
     const subbotID = subSock.user.id;
-    const filePath = path.resolve("./activossubbots.json");
+    const filePath = path.join(__dirname, "activossubbots.json");
 
     let activos = {};
     if (fs.existsSync(filePath)) {
       activos = JSON.parse(fs.readFileSync(filePath, "utf-8"));
     }
 
-    // Si el subbot no tiene lista de welcome, o ese grupo no está activado
     if (!activos.welcome || !activos.welcome[subbotID] || !activos.welcome[subbotID][chatId]) return;
 
     const welcomeTexts = [
@@ -128,73 +126,34 @@ subSock.ev.on("group-participants.update", async (update) => {
       "💨 ¡Chao! Esperamos que hayas disfrutado del grupo."
     ];
 
-    if (update.action === "add") {
-      for (const participant of update.participants) {
-        const mention = `@${participant.split("@")[0]}`;
-        const mensaje = welcomeTexts[Math.floor(Math.random() * welcomeTexts.length)];
-        const tipo = Math.random();
+    const texts = update.action === "add" ? welcomeTexts : farewellTexts;
+    const mensajeAleatorio = () => texts[Math.floor(Math.random() * texts.length)];
 
-        if (tipo < 0.33) {
-          let profilePic;
-          try {
-            profilePic = await subSock.profilePictureUrl(participant, "image");
-          } catch {
-            profilePic = "https://cdn.dorratz.com/files/1741323171822.jpg";
-          }
+    for (const participant of update.participants) {
+      const mention = `@${participant.split("@")[0]}`;
+      const mensaje = mensajeAleatorio();
+      const tipo = Math.random();
 
-          await subSock.sendMessage(chatId, {
-            image: { url: profilePic },
-            caption: `👋 ${mention}\n\n${mensaje}`,
-            mentions: [participant]
-          });
-        } else if (tipo < 0.66) {
-          let groupDesc = "";
-          try {
-            const meta = await subSock.groupMetadata(chatId);
-            groupDesc = meta.desc ? `\n\n📜 *Descripción del grupo:*\n${meta.desc}` : "";
-          } catch {}
-
-          await subSock.sendMessage(chatId, {
-            text: `👋 ${mention}\n\n${mensaje}${groupDesc}`,
-            mentions: [participant]
-          });
-        } else {
-          await subSock.sendMessage(chatId, {
-            text: `👋 ${mention}\n\n${mensaje}`,
-            mentions: [participant]
-          });
+      if (tipo < 0.5) {
+        let profilePic;
+        try {
+          profilePic = await subSock.profilePictureUrl(participant, "image");
+        } catch {
+          profilePic = "https://cdn.dorratz.com/files/1741323171822.jpg";
         }
+
+        await subSock.sendMessage(chatId, {
+          image: { url: profilePic },
+          caption: `👋 ${mention}\n\n${mensaje}`,
+          mentions: [participant]
+        });
+      } else {
+        await subSock.sendMessage(chatId, {
+          text: `👋 ${mention}\n\n${mensaje}`,
+          mentions: [participant]
+        });
       }
     }
-
-    if (update.action === "remove") {
-      for (const participant of update.participants) {
-        const mention = `@${participant.split("@")[0]}`;
-        const mensaje = farewellTexts[Math.floor(Math.random() * farewellTexts.length)];
-        const tipo = Math.random();
-
-        if (tipo < 0.5) {
-          let profilePic;
-          try {
-            profilePic = await subSock.profilePictureUrl(participant, "image");
-          } catch {
-            profilePic = "https://cdn.dorratz.com/files/1741323171822.jpg";
-          }
-
-          await subSock.sendMessage(chatId, {
-            image: { url: profilePic },
-            caption: `👋 ${mention}\n\n${mensaje}`,
-            mentions: [participant]
-          });
-        } else {
-          await subSock.sendMessage(chatId, {
-            text: `👋 ${mention}\n\n${mensaje}`,
-            mentions: [participant]
-          });
-        }
-      }
-    }
-
   } catch (err) {
     console.error("❌ Error en bienvenida/despedida del subbot:", err);
   }
