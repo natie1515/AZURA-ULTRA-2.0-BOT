@@ -81,6 +81,7 @@ async function perplexityQuery(q, prompt) {
   //lumi
   const axios = require("axios");
 const fetch = require("node-fetch");
+const { cargarSubbots } = require("./indexsubbots");
 
     const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } = require("@whiskeysockets/baileys");
     const chalk = require("chalk");
@@ -1471,7 +1472,7 @@ try {
 
 const path = require("path");
             
-async function cargarSubbots() {
+/*async function cargarSubbots() {
   const subbotFolder = "./subbots";
   const path = require("path");
   const fs = require("fs");
@@ -1804,7 +1805,7 @@ if (isGroup && !isFromSelf) {
   }
 }
 
-/*async function joinChannels(sock) {
+async function joinChannels(sock) {
 for (const channelId of Object.values(global.ch)) {
 await sock.newsletterFollow(channelId).catch(() => {})
 }}
@@ -1812,11 +1813,11 @@ await sock.newsletterFollow(channelId).catch(() => {})
 async function joinChannels2(subSock) {
 for (const channelId of Object.values(global.ch)) {
 await subSock.newsletterFollow(channelId).catch(() => {})
-}}*/
+}}
 
 // Ejecutar después de iniciar el bot principal
 setTimeout(cargarSubbots, 7000);
-module.exports = { cargarSubbots };
+module.exports = { cargarSubbots };*/
             
             sock.ev.on("creds.update", saveCreds);
 
