@@ -90,7 +90,7 @@ const handler = async (msg, { conn }) => {
   Quitar usuario autorizado pa que o lo usen.
 ▣ ${usedPrefix}delgrupo ↷
   Eliminar grupo autorizado pa que no lo usen.
-▣ ${usedPrefix}pong ↷
+▣ ${usedPrefix}ping ↷
   Medir latencia del bot
 
 ═⌬Azura Ultra 2.0 Subbot⌬═`;
