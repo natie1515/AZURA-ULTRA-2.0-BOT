@@ -46,6 +46,20 @@ const handler = async (msg, { conn, text, usedPrefix }) => {
 
     if (!videoData) throw new Error('No se pudo obtener el video en ninguna calidad');
 
+    // ⛔ Limitante de duración de 10 minutos
+    const durMatch = videoData.duration.match(/(\d+):(\d+)(?::(\d+))?/);
+    let durationMinutes = 0;
+    if (durMatch) {
+      const parts = durMatch.slice(1).map(v => parseInt(v) || 0);
+      durationMinutes = parts.length === 3 ? parts[0] * 60 + parts[1] : parts[0];
+    }
+
+    if (durationMinutes > 10) {
+      return await conn.sendMessage(msg.key.remoteJid, {
+        text: `⛔ El video dura más de *10 minutos* (duración: ${videoData.duration}).\nPor favor, intenta con uno más corto mi bebesito 🥺.`
+      }, { quoted: msg });
+    }
+
     const tmpDir = path.join(__dirname, '../tmp');
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
     const filePath = path.join(tmpDir, `${Date.now()}_video.mp4`);
@@ -64,7 +78,7 @@ const handler = async (msg, { conn, text, usedPrefix }) => {
 
     const caption = `
 ╔═════════════════╗
-║ ✦ 𝗔𝘇𝘂𝗿𝗮 𝗨𝗹𝘁𝗿𝗮 2.0 𝗦𝘂𝗯𝗯𝗼𝘁 ✦
+║ ✦ 𝗔𝘇𝘂𝗿𝗮 𝗨𝗹𝘁𝗿𝗮 𝗦𝘂𝗯𝗯𝗼𝘁 ✦
 ╚═════════════════╝
 
 📀 *Info del video:*  
@@ -79,7 +93,7 @@ const handler = async (msg, { conn, text, usedPrefix }) => {
 
 ⚠️ ¿No se reproduce? Usa _${usedPrefix}ff_
 
-⏳ *Procesado por Azura ultra 2.0 Subbot*`;
+⏳ *Procesado por Azura Ultra Subbot*`;
 
     await conn.sendMessage(msg.key.remoteJid, {
       video: fs.readFileSync(filePath),
