@@ -42,19 +42,28 @@ const handler = async (msg, { conn, text }) => {
     const author = videoInfo.channel || 'Desconocido';
     const videoLink = `https://www.youtube.com/watch?v=${videoInfo.id}`;
 
+    // ⏱️ Validar duración
+    const timeParts = duration.split(':').map(Number).reverse();
+    const durationMinutes = (timeParts[0] || 0) / 60 + (timeParts[1] || 0) + (timeParts[2] || 0) * 60;
+    if (durationMinutes > 10) {
+      return await conn.sendMessage(msg.key.remoteJid, {
+        text: `❌ *Duración excedida:*\nEste video dura más de *10 minutos* (${duration}).\nPor favor elige otro más corto.`
+      }, { quoted: msg });
+    }
+
     const captionPreview = `
 ╔════════════════╗
 ║ ✦ 𝗔𝘇𝘂𝗿𝗮 𝗨𝗹𝘁𝗿𝗮 2.0 𝗦𝘂𝗯𝗯𝗼𝘁 ✦
 ╚════════════════╝
 
-📀 *Info del video:*  
+📀 *Info del video:*    
 ├ 🎼 *Título:* ${title}
 ├ ⏱️ *Duración:* ${duration}
 ├ 👁️ *Vistas:* ${views}
 ├ 👤 *Autor:* ${author}
 └ 🔗 *Link:* ${videoLink}
 
-📥 *Opciones:*  
+📥 *Opciones:*    
 ┣ 🎵 _${usedPrefix}play1 ${text}_
 ┣ 🎥 _${usedPrefix}play6 ${text}_
 ┗ ⚠️ *¿No se reproduce?* Usa _${usedPrefix}ff_
