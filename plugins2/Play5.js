@@ -79,15 +79,6 @@ const handler = async (msg, { conn, text }) => {
         const video = search.videos[0];
         const { title, url, timestamp, views, author, thumbnail } = video;
 
-        // ⏱️ Validación de duración (máximo 10 minutos)
-        const parts = timestamp.split(':').map(Number).reverse();
-        const durationMin = (parts[0] || 0) / 60 + (parts[1] || 0) + (parts[2] || 0) * 60;
-        if (durationMin > 10) {
-            return await conn.sendMessage(msg.key.remoteJid, {
-                text: `❌ *Duración excedida:*\nEste video dura más de *10 minutos* (${timestamp}).\nPor favor elige otro más corto.`
-            }, { quoted: msg });
-        }
-
         const infoMessage = `
 ╔══════════════════╗
 ║  ✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 2.0 𝗦𝗨𝗕𝗕𝗢𝗧 ✦   
