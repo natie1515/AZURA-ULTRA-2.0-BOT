@@ -12,16 +12,12 @@ const handler = async (msg, { conn, text }) => {
 
     const ddownr = {
         download: async (url, format) => {
-            if (!formatVideo.includes(format)) {
-                throw new Error('Formato de video no soportado.');
-            }
+            if (!formatVideo.includes(format)) throw new Error('Formato de video no soportado.');
 
             const config = {
                 method: 'GET',
                 url: `https://p.oceansaver.in/ajax/download.php?format=${format}&url=${encodeURIComponent(url)}&api=dfcb6d76f2f6a9894gjkege8a4ab232222`,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0'
-                }
+                headers: { 'User-Agent': 'Mozilla/5.0' }
             };
 
             const response = await axios.request(config);
@@ -45,9 +41,7 @@ const handler = async (msg, { conn, text }) => {
             const config = {
                 method: 'GET',
                 url: `https://p.oceansaver.in/ajax/progress.php?id=${id}`,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0'
-                }
+                headers: { 'User-Agent': 'Mozilla/5.0' }
             };
 
             while (true) {
@@ -72,48 +66,34 @@ const handler = async (msg, { conn, text }) => {
 
     try {
         const search = await yts(text);
-        if (!search.videos || search.videos.length === 0) {
-            throw new Error('No se encontraron resultados.');
-        }
+        if (!search.videos || search.videos.length === 0) throw new Error('No se encontraron resultados.');
 
         const video = search.videos[0];
         const { title, url, timestamp, views, author, thumbnail } = video;
 
         const durParts = timestamp.split(':').map(Number);
-        const minutes = durParts.length === 3
-            ? durParts[0] * 60 + durParts[1]
-            : durParts[0];
+        const minutes = durParts.length === 3 ? durParts[0] * 60 + durParts[1] : durParts[0];
 
         let quality = '360';
         if (minutes <= 3) quality = '720';
         else if (minutes <= 5) quality = '480';
 
         const infoMessage = `
-╔══════════════════╗
-║✦ 𝘼𝙕𝙐𝙍𝘼 𝙐𝙇𝙏𝙍𝘼 2.0 𝗦𝗨𝗕𝗕𝗢𝗧 ✦ ║
-╚══════════════════╝
-
-📀 *𝙄𝙣𝙛𝙤 𝙙𝙚𝙡 𝙫𝙞𝙙𝙚𝙤:*  
-╭───────────────╮  
-├ 🎼 *Título:* ${title}
+╭───『 *🎬 Información del Video* 』───╮
+├ 📌 *Título:* ${title}
 ├ ⏱️ *Duración:* ${timestamp}
 ├ 👁️ *Vistas:* ${views.toLocaleString()}
 ├ 👤 *Autor:* ${author.name}
-└ 🔗 *Enlace:* ${url}
-╰───────────────╯
+├ 🔗 *Enlace:* ${url}
+╰────────────────────────────╯
 
-📥 *Opciones de Descarga:*  
-┣ 🎵 *Audio:* _${global.prefix}play ${text}_  
-┣ 🎵 *Audio de spotify:* _${global.prefix}play3 ${text}_
-┣ 🎥 *video:* _${global.prefix}play2 ${text}_
-┗ 🎥 *Video:* _${global.prefix}play6 ${text}_
+🎧 _Opciones de descarga disponibles:_
+▸ 🎵 Audio: *${global.prefix}play ${text}*
+▸ 🎵 Spotify: *${global.prefix}play3 ${text}*
+▸ 🎥 Video: *${global.prefix}play2 ${text}* | *${global.prefix}play6 ${text}*
 
-⏳ *Espera un momento...*  
-⚙️ *Azura Ultra & Cortana está procesando tu video...*
-
-═════════════════════  
-         𖥔 𝗔𝘇𝘂𝗿𝗮 𝗨𝗹𝘁𝗿𝗮 2.0 𝗦𝗨𝗕𝗕𝗼𝘁 𖥔
-═════════════════════`;
+⏳ *Procesando tu descarga...*
+`;
 
         await conn.sendMessage(msg.key.remoteJid, {
             image: { url: thumbnail },
@@ -159,7 +139,7 @@ const handler = async (msg, { conn, text }) => {
                 .save(finalPath);
         });
 
-        const finalText = `🎬 Aquí tiene su video en calidad ${quality}p.\n\nDisfrútelo y continúe explorando el mundo digital.\n\n© Azura Ultra 2.0 SubBot`;
+        const finalText = `✅ *Aquí tienes tu video en calidad ${quality}p.*\n\n🎉 ¡Gracias por usar el bot!`;
 
         await conn.sendMessage(msg.key.remoteJid, {
             video: fs.readFileSync(finalPath),
