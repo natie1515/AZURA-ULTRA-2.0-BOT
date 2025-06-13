@@ -71,8 +71,14 @@ const handler = async (msg, { conn, text }) => {
         const video = search.videos[0];
         const { title, url, timestamp, views, author, thumbnail } = video;
 
+        // ⛔️ Limitante de 10 minutos
         const durParts = timestamp.split(':').map(Number);
         const minutes = durParts.length === 3 ? durParts[0] * 60 + durParts[1] : durParts[0];
+        if (minutes > 10) {
+            return await conn.sendMessage(msg.key.remoteJid, {
+                text: `⛔ El video dura más de *10 minutos* (duración: ${timestamp}).\nPor favor, intenta con uno más corto, mi rey 😘.`
+            }, { quoted: msg });
+        }
 
         let quality = '360';
         if (minutes <= 3) quality = '720';
