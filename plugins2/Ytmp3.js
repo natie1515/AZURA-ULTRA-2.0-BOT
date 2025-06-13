@@ -28,15 +28,7 @@ const handler = async (msg, { conn, text, usedPrefix }) => {
       throw new Error("No se pudo obtener el audio");
     }
 
-    const { data, title, fduration, duration, thumbnail } = json;
-
-    // ⚠️ Limitante de 10 minutos
-    const durationInSeconds = Number(duration);
-    if (durationInSeconds > 600) {
-      return await conn.sendMessage(msg.key.remoteJid, {
-        text: `⛔ El audio supera el límite de *10 minutos* (duración: ${fduration}).\nPor favor intenta con un video más corto.`
-      }, { quoted: msg });
-    }
+    const { data, title, fduration, thumbnail } = json;
 
     await conn.sendMessage(msg.key.remoteJid, {
       image: { url: thumbnail },
@@ -87,6 +79,4 @@ const handler = async (msg, { conn, text, usedPrefix }) => {
 };
 
 handler.command = ['ytmp3'];
-handler.tags = ['downloader'];
-handler.help = ['ytmp3 <enlace de YouTube> - Descarga el audio en mp3'];
 module.exports = handler;
