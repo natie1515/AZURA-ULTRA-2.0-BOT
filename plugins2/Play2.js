@@ -6,6 +6,7 @@ const { pipeline } = require('stream');
 const streamPipeline = promisify(pipeline);
 
 const handler = async (msg, { conn, text }) => {
+  // Detectar subbotID y prefijo
   const rawID = conn.user?.id || "";
   const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
 
@@ -41,30 +42,22 @@ const handler = async (msg, { conn, text }) => {
     const author = videoInfo.channel || 'Desconocido';
     const videoLink = `https://www.youtube.com/watch?v=${videoInfo.id}`;
 
-    // Validar duración (opcional)
-    const durParts = duration.split(':').map(Number).reverse();
-    const durMins = (durParts[0] || 0) / 60 + (durParts[1] || 0) + (durParts[2] || 0) * 60;
-    if (durMins > 10) {
-      return await conn.sendMessage(msg.key.remoteJid, {
-        text: `❌ *Duración excedida:*\nEste video dura más de *10 minutos* (${duration}).\nPor favor elige otro más corto.`
-      }, { quoted: msg });
-    }
-
     const captionPreview = `
-
-   ✦ AZURA ULTRA 2.0 𝗦𝘂𝗯𝗯𝗼𝘁 ✦
+╔════════════════╗
+║ ✦ 𝗔𝘇𝘂𝗿𝗮 𝗨𝗹𝘁𝗿𝗮 & 𝘾𝙤𝙧𝙩𝙖𝙣𝙖 𝗦𝘂𝗯𝗯𝗼𝘁 ✦
+╚════════════════╝
 
 📀 *Info del video:*  
-❀ 🎼 *Título:* ${title}
-❀ ⏱️ *Duración:* ${duration}
-❀ 👁️ *Vistas:* ${views}
-❀ 👤 *Autor:* ${author}
-❀ 🔗 *Link:* ${videoLink}
+├ 🎼 *Título:* ${title}
+├ ⏱️ *Duración:* ${duration}
+├ 👁️ *Vistas:* ${views}
+├ 👤 *Autor:* ${author}
+└ 🔗 *Link:* ${videoLink}
 
 📥 *Opciones:*  
-❀ 🎵 _${usedPrefix}play1 ${text}_
-❀ 🎥 _${usedPrefix}play6 ${text}_
-❀ ⚠️ *¿No se reproduce?* Usa _${usedPrefix}ff_
+┣ 🎵 _${usedPrefix}play1 ${text}_
+┣ 🎥 _${usedPrefix}play6 ${text}_
+┗ ⚠️ *¿No se reproduce?* Usa _${usedPrefix}ff_
 
 ⏳ Procesando video...
 ═════════════════════`;
@@ -74,18 +67,31 @@ const handler = async (msg, { conn, text }) => {
       caption: captionPreview
     }, { quoted: msg });
 
-    // Descarga directa del video sin probar calidades
-    const apiUrl = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(videoLink)}&type=video&quality=360p&apikey=russellxz`;
-    const res = await axios.get(apiUrl);
-    const json = res.data;
+    const qualities = ['720p', '480p', '360p'];
+    let videoData = null;
 
-    if (!json.status || !json.data?.url) throw new Error('No se pudo obtener el enlace del video');
+    for (let quality of qualities) {
+      try {
+        const apiUrl = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(videoLink)}&apikey=russellxz&type=video&quality=${quality}`;
+        const response = await axios.get(apiUrl);
+        if (response.data?.status && response.data?.data?.url) {
+          videoData = {
+            url: response.data.data.url,
+            title: response.data.title || title,
+            id: response.data.id || videoInfo.id
+          };
+          break;
+        }
+      } catch { continue; }
+    }
+
+    if (!videoData) throw new Error('No se pudo obtener el video');
 
     const tmpDir = path.join(__dirname, '../tmp');
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
     const filePath = path.join(tmpDir, `${Date.now()}_video.mp4`);
 
-    const resDownload = await axios.get(json.data.url, {
+    const resDownload = await axios.get(videoData.url, {
       responseType: 'stream',
       headers: { 'User-Agent': 'Mozilla/5.0' }
     });
@@ -100,8 +106,8 @@ const handler = async (msg, { conn, text }) => {
     await conn.sendMessage(msg.key.remoteJid, {
       video: fs.readFileSync(filePath),
       mimetype: 'video/mp4',
-      fileName: `${title}.mp4`,
-      caption: `🎬 Aquí tiene su video en calidad estándar.\n\n© Azura ultra 2.0 Subbot`
+      fileName: `${videoData.title}.mp4`,
+      caption: `🎬 Aquí tiene su video en calidad normal.\n\n© Azura Ultra Subbot`
     }, { quoted: msg });
 
     fs.unlinkSync(filePath);
@@ -115,7 +121,6 @@ const handler = async (msg, { conn, text }) => {
     await conn.sendMessage(msg.key.remoteJid, {
       text: `❌ *Error:* ${err.message}`
     }, { quoted: msg });
-
     await conn.sendMessage(msg.key.remoteJid, {
       react: { text: '❌', key: msg.key }
     });
