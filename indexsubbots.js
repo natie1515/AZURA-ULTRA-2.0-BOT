@@ -243,7 +243,32 @@ if (isGroup) {
   }
 }
 // === FIN LÓGICA GRUPO AUTORIZADO ===
+// === INICIO LÓGICA PRIVADO AUTORIZADO ===
+if (!isGroup) {
+  const botNum = subSock.user?.id.split(":")[0].replace(/\D/g, "");
 
+  // Si el que envía no es el propio bot
+  if (senderNum !== botNum) {
+    const listaPath = path.join(__dirname, "listasubots.json");
+    let dataPriv = {};
+
+    try {
+      if (fs.existsSync(listaPath)) {
+        dataPriv = JSON.parse(fs.readFileSync(listaPath, "utf-8"));
+      }
+    } catch (e) {
+      console.error("❌ Error leyendo listasubots.json:", e);
+    }
+
+    const listaPermitidos = Array.isArray(dataPriv[subbotID]) ? dataPriv[subbotID] : [];
+
+    if (!listaPermitidos.includes(senderNum)) {
+      return; // 🚫 Usuario no autorizado, ignorar mensaje privado
+    }
+  }
+}
+// === FIN LÓGICA PRIVADO AUTORIZADO ===
+            
             
             const customPrefix = dataPrefijos[subbotID];
             const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
