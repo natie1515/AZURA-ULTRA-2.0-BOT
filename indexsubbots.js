@@ -8,6 +8,14 @@ const {
   makeCacheableSignalKeyStore
 } = require("@whiskeysockets/baileys");
 
+process.on('uncaughtException', err => {
+  console.error('❌ Excepción no atrapada:', err);
+});
+
+process.on('unhandledRejection', err => {
+  console.error('❌ Promesa rechazada sin manejar:', err);
+});
+
 async function cargarSubbots() {
   const subbotFolder = "./subbots";
 
@@ -324,9 +332,9 @@ if (isGroup) {
   const command = body.split(" ")[0].toLowerCase();
   const args = body.split(" ").slice(1);
 
-  await handleSubCommand(subSock, m, command, args);
+  await handleSubCommand(subSock, m, command, args).catch(err => {
+  console.error("❌ Error ejecutando comando del subbot:", err);
 });
-
 
       } catch (err) {
         console.error(`❌ Error cargando subbot ${dir}:`, err);
