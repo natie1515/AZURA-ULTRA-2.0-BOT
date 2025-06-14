@@ -6,7 +6,6 @@ const { pipeline } = require('stream');
 const streamPipeline = promisify(pipeline);
 
 const handler = async (msg, { conn, text }) => {
-  // Detectar subbotID y prefijo
   const rawID = conn.user?.id || "";
   const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
 
@@ -41,6 +40,16 @@ const handler = async (msg, { conn, text }) => {
     const views = videoInfo.views || 'N/A';
     const author = videoInfo.channel || 'Desconocido';
     const videoLink = `https://www.youtube.com/watch?v=${videoInfo.id}`;
+
+    // Verificar duración máxima
+    const timeParts = duration.split(':').map(Number).reverse();
+    const durationMinutes = (timeParts[0] || 0) / 60 + (timeParts[1] || 0) + (timeParts[2] || 0) * 60;
+
+    if (durationMinutes > 10) {
+      return await conn.sendMessage(msg.key.remoteJid, {
+        text: `❌ *Duración excedida:*\nEste video dura más de *10 minutos* (${duration}).\nPor favor elige otro más corto.`
+      }, { quoted: msg });
+    }
 
     const captionPreview = `
 ╔════════════════╗
