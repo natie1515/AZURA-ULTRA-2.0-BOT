@@ -197,6 +197,7 @@ if (isGroup) {
 
     const rawID = subSock.user?.id || "";
     const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
+    const botNum = rawID.split(":")[0].replace(/[^0-9]/g, "");
 
     // Obtener el texto completo del mensaje
     const messageText =
@@ -222,7 +223,7 @@ if (isGroup) {
     const body = messageText.slice(usedPrefix.length).trim();
     const command = body.split(" ")[0].toLowerCase();
 
-    const allowedCommands = ['addgrupo']; // Solo este se permite sin estar en lista
+    const allowedCommands = ['addgrupo']; // Comando permitido aún si no está autorizado el grupo
 
     let dataGrupos = {};
     if (fs.existsSync(grupoPath)) {
@@ -231,8 +232,9 @@ if (isGroup) {
 
     const gruposPermitidos = Array.isArray(dataGrupos[subbotID]) ? dataGrupos[subbotID] : [];
 
-    if (!gruposPermitidos.includes(from) && !allowedCommands.includes(command)) {
-      return; // Grupo no autorizado y no es comando permitido
+    // ⚠️ Solo bloquear si NO es el subbot hablando
+    if (senderNum !== botNum && !gruposPermitidos.includes(from) && !allowedCommands.includes(command)) {
+      return; // Otro usuario y grupo no autorizado
     }
 
   } catch (err) {
