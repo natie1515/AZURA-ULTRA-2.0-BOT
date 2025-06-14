@@ -245,10 +245,11 @@ if (isGroup) {
 // === FIN LÓGICA GRUPO AUTORIZADO ===
 // === INICIO LÓGICA PRIVADO AUTORIZADO ===
 if (!isGroup) {
-  const botNum = subSock.user?.id.split(":")[0].replace(/\D/g, "");
+  const isFromSelf = m.key.fromMe;
+  const rawID = subSock.user?.id || "";
+  const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
 
-  // Si el que envía no es el propio bot
-  if (senderNum !== botNum) {
+  if (!isFromSelf) {
     const listaPath = path.join(__dirname, "listasubots.json");
     let dataPriv = {};
 
@@ -268,7 +269,6 @@ if (!isGroup) {
   }
 }
 // === FIN LÓGICA PRIVADO AUTORIZADO ===
-            
             
             const customPrefix = dataPrefijos[subbotID];
             const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
