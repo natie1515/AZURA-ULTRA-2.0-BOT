@@ -787,7 +787,7 @@ ${eliminados.length ? eliminados.map(d => `- ${d}`).join("\n") : "Ninguno"}
     }
     break;
 
-case "sercode":
+/*case "sercode":
 case "code":
 case "jadibot":
 case "serbot":
@@ -992,7 +992,7 @@ Usa ${global.prefix}serbot para volver a conectar.`
 
   await serbot();
 }
-break;
+break;*/
 
 case 'tovideo': {
   const fs = require('fs');
