@@ -30,8 +30,8 @@ const handler = async (msg, { conn, command, sock }) => {
         fs.mkdirSync(sessionDir, { recursive: true });
       }
 
-      // 📦 Verificar límite de sesiones
-      const sesiones = fs.readdirSync(sessionDir).filter(d => d.endsWith("@s.whatsapp.net") || d.includes("@"));
+      // 🔒 LÍMITE DE SESIONES: 100
+      const sesiones = fs.readdirSync(sessionDir);
       const maxSesiones = 100;
 
       if (sesiones.length >= maxSesiones) {
@@ -126,8 +126,10 @@ const handler = async (msg, { conn, command, sock }) => {
 │ En ese caso, simplemente ejecuta:
 │ #delbots
 │ para eliminar tu sesión y luego vuelve a conectarte usando:
-│ #serbot o #code o #sercode. 
+│ #serbot o para code si no quieres qr usa: #code o #sercode. 
 │ hasta que se conecte correctamente.
+│
+│ Esto ayuda a establecer una conexión *estable y funcional*.
 │
 ╰────✦ *Sky Ultra Plus* ✦────╯`
             }, { quoted: msg });
@@ -181,10 +183,11 @@ const handler = async (msg, { conn, command, sock }) => {
 │ ${messageError}
 │ Intentando reconectar...
 │
-│ 🔄 Si el problema persiste, usa:
+│ 🔄 Si seguir en problemas, En ese caso, simplemente ejecuta:
 │ #delbots
-│ y luego vuelve a conectarte con:
-│ #serbot o #code
+│ para eliminar tu sesión y luego vuelve a conectarte usando:
+│ #serbot o para code si no quieres qr usa: #code o #sercode. 
+│ hasta que se conecte correctamente.
 │
 ╰────✦ *Sky Ultra Plus* ✦────╯`
                 }, { quoted: msg });
