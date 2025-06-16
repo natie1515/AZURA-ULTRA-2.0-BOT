@@ -71,12 +71,11 @@ async function iniciarSubbot(sessionPath) {
     subSock.ev.on("creds.update", saveCreds);
 
     /* ── Conexión / Reconexión – Lógica ajustada ─────────── */
-/* Temporizadores */
-let reconTimer  = null;   // reintento en 5 s
+/* Temporizadores por sub-bot */
+let reconTimer  = null;   // reintento a 5 s
 let deleteTimer = null;   // borrado diferido
 
 subSock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
-
   /* ── Conexión abierta ───────────────────────────── */
   if (connection === "open") {
     console.log(`✅ Subbot ${dir} conectado.`);
@@ -89,42 +88,44 @@ subSock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
   if (connection === "close") {
     const code = new Boom(lastDisconnect?.error)?.output.statusCode ||
                  lastDisconnect?.error?.output?.statusCode;
-    const text = DisconnectReason[code] || `Desconocido (${code})`;
-    console.log(`⚠️  ${dir} desconectado ⇒ ${text}`);
+    const texto = DisconnectReason[code] || `Desconocido (${code})`;
+    console.log(`⚠️  ${dir} desconectado ⇒ ${texto}`);
 
-    /* 1️⃣  Cierre definitivo → borrado tras 15 s */
-    const cierreDefinitivo = [
+    /* Cierres definitivos: loggedOut / badSession / 401 */
+    const cierreDef = [
       DisconnectReason.loggedOut,
       DisconnectReason.badSession,
       401
     ].includes(code);
 
-    if (cierreDefinitivo) {
-      console.log(`🗑️  ${dir}: cierre definitivo. Eliminando en 45 s…`);
+    /* 🔴 BORRA tras 15 s si es cierre definitivo */
+    if (cierreDef) {
       if (deleteTimer) clearTimeout(deleteTimer);
       deleteTimer = setTimeout(() => {
         if (fs.existsSync(sessionPath)) fs.rmSync(sessionPath, { recursive: true, force: true });
         delete global.subBots[sessionPath];
-      }, 45_000);
+        console.log(`🗑️  ${dir} eliminado (cierre definitivo).`);
+      }, 15_000);
       return;
     }
 
-    /* 2️⃣  Desconexión temporal → reintento + borrado a 30 s */
+    /* 🟡 Desconexión temporal: programa reintento y borrado */
     if (!reconTimer) {
-      console.log(`🔄  Reintentando ${dir} en 5 s; se borrará en 30 s si no vuelve…`);
+      console.log(`🔄  Reintentando ${dir} en 5 s (se borrará si no vuelve en 30 s)…`);
 
       reconTimer = setTimeout(() => {
-        delete global.subBots[sessionPath];      // limpia registro
-        iniciarSubbot(sessionPath);              // nuevo intento
+        iniciarSubbot(sessionPath);      // nuevo intento
       }, 5_000);
     }
 
     if (!deleteTimer) {
       deleteTimer = setTimeout(() => {
-        console.log(`🗑️  ${dir}: sin éxito tras 45 s. Eliminando sesión.`);
-        if (fs.existsSync(sessionPath)) fs.rmSync(sessionPath, { recursive: true, force: true });
+        if (fs.existsSync(sessionPath)) {
+          fs.rmSync(sessionPath, { recursive: true, force: true });
+          console.log(`🗑️  ${dir} eliminado tras 30 s sin reconectar.`);
+        }
         delete global.subBots[sessionPath];
-      }, 45_000);
+      }, 30_000);
     }
   }
 });
