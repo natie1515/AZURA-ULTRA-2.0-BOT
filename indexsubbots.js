@@ -71,6 +71,8 @@ async function iniciarSubbot(sessionPath) {
     subSock.ev.on("creds.update", saveCreds);
 
     /* ── Conexión / Reconexión – Lógica ajustada ─────────── */
+let reconTimer  = null;   // reintento en 5 s
+let deleteTimer = null;   // borrado diferido
     
       subSock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
   if (connection === "open") {
