@@ -1,165 +1,229 @@
-const path  = require("path");
-const fs    = require("fs");
-const pino  = require("pino");
+const fs = require('fs');
+const path = require('path');
+const { Boom } = require('@hapi/boom');
+const pino = require('pino');
+const QRCode = require('qrcode');
 const {
   default: makeWASocket,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
-} = require("@whiskeysockets/baileys");
+  DisconnectReason
+} = require('@whiskeysockets/baileys');
 
-/* ─── Manejo global de errores ─────────────────────────────── */
-process.on("uncaughtException",  err => console.error("❌ Excepción no atrapada:", err));
-process.on("unhandledRejection", err => console.error("❌ Promesa rechazada sin manejar:", err));
+const MAX_SUBBOTS = 100;                           // ── NUEVO
 
-/* ─── Registro de sockets activos ──────────────────────────── */
-global.subBots = global.subBots || {};
+const handler = async (msg, { conn, command, sock }) => {
+  const usarPairingCode = ["sercode", "code"].includes(command);
+  let sentCodeMessage = false;
 
-/* ─── Helpers de plugins ───────────────────────────────────── */
-function loadSubPlugins() {
-  const plugins   = [];
-  const pluginDir = path.join(__dirname, "plugins2");
-  if (!fs.existsSync(pluginDir)) return plugins;
-
-  const files = fs.readdirSync(pluginDir).filter(f => f.endsWith(".js"));
-  for (const file of files) {
-    delete require.cache[path.join(pluginDir, file)];       // hot-reload
-    const plugin = require(path.join(pluginDir, file));
-    if (plugin && plugin.command) plugins.push(plugin);
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
-  return plugins;
-}
 
-async function handleSubCommand(sock, msg, command, args) {
-  const subPlugins  = loadSubPlugins();
-  const lowerCmd    = command.toLowerCase();
-  const text        = args.join(" ");
-  const plugin      = subPlugins.find(p => p.command.includes(lowerCmd));
+  async function serbot() {
+    try {
+      const number = msg.key?.participant || msg.key.remoteJid;
+      const sessionDir = path.join(__dirname, "../subbots");
+      const sessionPath = path.join(sessionDir, number);
+      const rid = number.split("@")[0];
 
-  if (plugin) {
-    return plugin(msg, {
-      conn: sock,
-      text,
-      args,
-      command: lowerCmd,
-      usedPrefix: ".",     // prefijo por defecto
-    });
-  }
-}
-
-/* ─── Arranque de UN sub-bot ───────────────────────────────── */
-async function iniciarSubbot(sessionPath) {
-  if (global.subBots[sessionPath]) return;   // ya está activo
-
-  const dir = path.basename(sessionPath);
-  let reconnectionTimer = null;
-
-  try {
-    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-    const { version }          = await fetchLatestBaileysVersion();
-
-    const subSock = makeWASocket({
-      version,
-      logger: pino({ level: "silent" }),
-      auth: {
-        creds: state.creds,
-        keys:  makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" })),
-      },
-      browser: ["Cortana Subbot", "Firefox", "2.0"],
-    });
-
-    global.subBots[sessionPath] = subSock;
-    subSock.ev.on("creds.update", saveCreds);
-
-    /* Conexión / Reconexión */
-    subSock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
-      if (connection === "open") {
-        console.log(`✅ Subbot ${dir} conectado.`);
-        if (reconnectionTimer) { clearTimeout(reconnectionTimer); reconnectionTimer = null; }
+      /* ────────────────────────
+         VERIFICACIÓN DE LÍMITE
+      ─────────────────────────*/
+      if (!fs.existsSync(sessionDir)) {
+        fs.mkdirSync(sessionDir, { recursive: true });
       }
 
-      if (connection === "close") {
-        const status = lastDisconnect?.error?.output?.statusCode;
-        console.log(`❌ Subbot ${dir} desconectado (status: ${status}). Se eliminará en 20 s si no vuelve…`);
+      // Cuenta subcarpetas que tengan un creds.json dentro.
+      const subbotDirs = fs.readdirSync(sessionDir).filter(d =>
+        fs.existsSync(path.join(sessionDir, d, "creds.json"))
+      );
 
-        reconnectionTimer = setTimeout(() => {
-          if (fs.existsSync(sessionPath)) {
-            fs.rmSync(sessionPath, { recursive: true, force: true });
-            console.log(`🗑️ Subbot ${dir} eliminado por desconexión prolongada.`);
+      if (subbotDirs.length >= MAX_SUBBOTS) {
+        await conn.sendMessage(msg.key.remoteJid, {
+          text: `🚫 *Límite alcanzado:* existen ${subbotDirs.length}/${MAX_SUBBOTS} sesiones de sub-bot activas.\nVuelve a intentarlo más tarde.`
+        }, { quoted: msg });
+        return; // No continúa a generar código/QR
+      } else {
+        const restantes = MAX_SUBBOTS - subbotDirs.length;
+        await conn.sendMessage(msg.key.remoteJid, {
+          text: `ℹ️ Quedan *${restantes}* espacios disponibles para conectar nuevos sub-bots.`
+        }, { quoted: msg });
+      }
+      /* ────── FIN VERIFICACIÓN ──────*/
+
+      await conn.sendMessage(msg.key.remoteJid, {
+        react: { text: '⌛', key: msg.key }
+      });
+
+      const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+      const { version } = await fetchLatestBaileysVersion();
+      const logger = pino({ level: "silent" });
+
+      const socky = makeWASocket({
+        version,
+        logger,
+        auth: {
+          creds: state.creds,
+          keys: makeCacheableSignalKeyStore(state.keys, logger)
+        },
+        printQRInTerminal: !usarPairingCode,
+        browser: ['Windows', 'Chrome']
+      });
+
+      let reconnectionAttempts = 0;
+      const maxReconnectionAttempts = 3;
+
+      socky.ev.on("connection.update", async ({ qr, connection, lastDisconnect }) => {
+        if (qr && !sentCodeMessage) {
+          if (usarPairingCode) {
+            const code = await socky.requestPairingCode(rid);
+            await conn.sendMessage(msg.key.remoteJid, {
+              video: { url: "https://cdn.russellxz.click/b0cbbbd3.mp4" },
+              caption: "🔐 *Código generado:*\nAbre WhatsApp > Vincular dispositivo y pega el siguiente código:",
+              gifPlayback: true
+            }, { quoted: msg });
+            await sleep(1000);
+            await conn.sendMessage(msg.key.remoteJid, {
+              text: "```" + code + "```"
+            }, { quoted: msg });
+          } else {
+            const qrImage = await QRCode.toBuffer(qr);
+            await conn.sendMessage(msg.key.remoteJid, {
+              image: qrImage,
+              caption: `📲 Escanea este código QR desde *WhatsApp > Vincular dispositivo* para conectarte como sub-bot.`
+            }, { quoted: msg });
           }
-        }, 20_000);
+          sentCodeMessage = true;
+        }
 
-        delete global.subBots[sessionPath];
-        setTimeout(() => iniciarSubbot(sessionPath), 5_000);   // re-intenta
-      }
-    });
+        switch (connection) {
+          case "open":
+            await conn.sendMessage(msg.key.remoteJid, {
+              text: `╭───〔 *🤖 SUBBOT CONECTADO* 〕───╮
+│
+│ ✅ *Bienvenido a CORTANA 2.0 Bot*
+│
+│ Ya eres parte del mejor sistema de juegos RPG
+│
+│ 🛠️ Usa los siguientes comandos para comenzar:
+│
+│ ${global.prefix}help
+│ ${global.prefix}menu
+│
+│ ⚔️ Disfruta de las funciones del subbot
+│ y conquista el mundo digital
+│
+│ ℹ️ Por defecto, el subbot está en *modo privado*,
+│ lo que significa que *solo tú puedes usarlo*.
+│
+│ Usa el comando:
+│ #menu
+│ (para ver configuraciones y cómo hacer
+│ que otras personas puedan usarlo.)
+│
+│ ➕ Los prefijos por defecto son: *. y #*
+│ Si quieres cambiarlos, usa:
+│ #setprefix
+│
+│ 🔄 Si notas que el subbot *no responde al instante*
+│ o tarda mucho *aunque esté conectado*, no te preocupes.
+│ Puede ser un fallo temporal.
+│
+│ En ese caso, simplemente ejecuta:
+│ #delbots
+│ para eliminar tu sesión y luego vuelve a conectarte usando:
+│ #serbot o para code si no quieres qr usa: #code o #sercode. 
+│ hasta que se conecte correctamente.
+│
+│ Esto ayuda a establecer una conexión *estable y funcional*.
+│
+╰────✦ *Sky Ultra Plus* ✦────╯`
+            }, { quoted: msg });
 
-    /* Núcleo de mensajes */
-    subSock.ev.on("messages.upsert", async msg => {
-      try {
-        const m = msg.messages[0];
-        if (!m || !m.message) return;
+            await conn.sendMessage(msg.key.remoteJid, {
+              react: { text: "🔁", key: msg.key }
+            });
+            break;
 
-        const rawID    = subSock.user?.id || "";
-        const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
+          case "close": {
+            const reason = new Boom(lastDisconnect?.error)?.output.statusCode || lastDisconnect?.error?.output?.statusCode;
+            const messageError = DisconnectReason[reason] || `Código desconocido: ${reason}`;
 
-        const prefixPath = path.join(__dirname, "prefixes.json");
-        let dataPrefijos = {};
-        if (fs.existsSync(prefixPath)) dataPrefijos = JSON.parse(fs.readFileSync(prefixPath, "utf8"));
+            const eliminarSesion = () => {
+              if (fs.existsSync(sessionPath)) {
+                fs.rmSync(sessionPath, { recursive: true, force: true });
+              }
+            };
 
-        const messageText =
-          m.message?.conversation ||
-          m.message?.extendedTextMessage?.text ||
-          m.message?.imageMessage?.caption ||
-          m.message?.videoMessage?.caption ||
-          "";
+            switch (reason) {
+              case 401:
+              case DisconnectReason.badSession:
+              case DisconnectReason.loggedOut:
+                await conn.sendMessage(msg.key.remoteJid, {
+                  text: `⚠️ *Sesión eliminada.*
+${messageError}
+Usa ${global.prefix}serbot para volver a conectar.`
+                }, { quoted: msg });
+                eliminarSesion();
+                break;
 
-        const customPrefix     = dataPrefijos[subbotID];
-        const allowedPrefixes  = customPrefix ? [customPrefix] : [".", "#"];
-        const usedPrefix       = allowedPrefixes.find(p => messageText.startsWith(p));
-        if (!usedPrefix) return;
+              case DisconnectReason.restartRequired:
+                if (reconnectionAttempts < maxReconnectionAttempts) {
+                  reconnectionAttempts++;
+                  await sleep(3000);
+                  await serbot();
+                  return;
+                }
+                await conn.sendMessage(msg.key.remoteJid, {
+                  text: `⚠️ *Reintentos de conexión fallidos.*`
+                }, { quoted: msg });
+                break;
 
-        const body    = messageText.slice(usedPrefix.length).trim();
-        const command = body.split(" ")[0].toLowerCase();
-        const args    = body.split(" ").slice(1);
+              case DisconnectReason.connectionReplaced:
+                console.log(`ℹ️ Sesión reemplazada por otra instancia.`);
+                break;
 
-        await handleSubCommand(subSock, m, command, args)
-          .catch(err => console.error("❌ Error ejecutando comando del subbot:", err));
-      } catch (err) {
-        console.error("❌ Error interno en messages.upsert:", err);
-      }
-    });
+              default:
+                await conn.sendMessage(msg.key.remoteJid, {
+                  text: `╭───〔 *⚠️ SUBBOT* 〕───╮
+│
+│⚠️ *Problema de conexión detectado:*
+│ ${messageError}
+│ Intentando reconectar...
+│
+│ 🔄 Si seguir en problemas, En ese caso, simplemente ejecuta:
+│ #delbots
+│ para eliminar tu sesión y luego vuelve a conectarte usando:
+│ #serbot o para code si no quieres qr usa: #code o #sercode. 
+│ hasta que se conecte correctamente.
+│
+│ Esto ayuda a establecer una conexión *estable y funcional*.
+│
+╰────✦ *Sky Ultra Plus* ✦────╯`
+                }, { quoted: msg });
+                break;
+            }
+            break;
+          }
+        }
+      });
 
-  } catch (err) {
-    console.error(`❌ Error cargando subbot ${dir}:`, err);
+      socky.ev.on("creds.update", saveCreds);
+
+    } catch (e) {
+      console.error("❌ Error en serbot:", e);
+      await conn.sendMessage(msg.key.remoteJid, {
+        text: `❌ *Error inesperado:* ${e.message}`
+      }, { quoted: msg });
+    }
   }
-}
 
-/* ─── Escaneo inicial + Watcher ───────────────────────────── */
-async function cargarSubbots() {
-  const base = path.resolve(__dirname, "subbots");
-  if (!fs.existsSync(base)) {
-    fs.mkdirSync(base, { recursive: true });
-    console.log("📁 Carpeta ./subbots creada automáticamente.");
-  }
+  await serbot();
+};
 
-  /* Carga inicial */
-  const dirs = fs.readdirSync(base)
-    .filter(d => fs.existsSync(path.join(base, d, "creds.json")));
-  console.log(`🤖 Cargando ${dirs.length} subbot(s) conectados…`);
-  for (const d of dirs) await iniciarSubbot(path.join(base, d));
-
-  /* Watcher de nuevas sesiones */
-  fs.watch(base, { recursive: true }, (event, filename) => {
-    if (!filename || !filename.endsWith("creds.json")) return;
-    const full = path.join(base, filename);
-    if (!fs.existsSync(full)) return;             // archivo borrado
-    const sessionPath = path.dirname(full);
-    iniciarSubbot(sessionPath);                   // lanza si no existe
-  });
-}
-
-cargarSubbots();
-
-/* ─── Exportaciones ───────────────────────────────────────── */
-module.exports = { cargarSubbots, iniciarSubbot };
+handler.command = ['sercode', 'code', 'jadibot', 'serbot', 'qr'];
+handler.tags = ['owner'];
+handler.help = ['serbot', 'code'];
+module.exports = handler;
