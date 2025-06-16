@@ -11,7 +11,9 @@ const {
   DisconnectReason
 } = require('@whiskeysockets/baileys');
 
-const MAX_SUBBOTS = 100;                           // ── NUEVO
+const { cargarSubbots } = require('../indexsubbots'); // ← NUEVO
+
+const MAX_SUBBOTS = 100;
 
 const handler = async (msg, { conn, command, sock }) => {
   const usarPairingCode = ["sercode", "code"].includes(command);
@@ -35,7 +37,6 @@ const handler = async (msg, { conn, command, sock }) => {
         fs.mkdirSync(sessionDir, { recursive: true });
       }
 
-      // Cuenta subcarpetas que tengan un creds.json dentro.
       const subbotDirs = fs.readdirSync(sessionDir).filter(d =>
         fs.existsSync(path.join(sessionDir, d, "creds.json"))
       );
@@ -44,7 +45,7 @@ const handler = async (msg, { conn, command, sock }) => {
         await conn.sendMessage(msg.key.remoteJid, {
           text: `🚫 *Límite alcanzado:* existen ${subbotDirs.length}/${MAX_SUBBOTS} sesiones de sub-bot activas.\nVuelve a intentarlo más tarde.`
         }, { quoted: msg });
-        return; // No continúa a generar código/QR
+        return;
       } else {
         const restantes = MAX_SUBBOTS - subbotDirs.length;
         await conn.sendMessage(msg.key.remoteJid, {
@@ -145,6 +146,14 @@ const handler = async (msg, { conn, command, sock }) => {
             await conn.sendMessage(msg.key.remoteJid, {
               react: { text: "🔁", key: msg.key }
             });
+
+            /* Recargar sub-bots para que el nuevo
+               comience a responder de inmediato */
+            try {
+              await cargarSubbots();               // ← NUEVO
+            } catch (err) {
+              console.error("[Subbots] Error al recargar:", err);
+            }
             break;
 
           case "close": {
