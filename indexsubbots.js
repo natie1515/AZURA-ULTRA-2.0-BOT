@@ -72,45 +72,43 @@ async function iniciarSubbot(sessionPath) {
 
     /* ── Conexión / Reconexión – Lógica ajustada ─────────── */
     subSock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
-  if (connection === "open") {
-    console.log(`✅ ${dir} conectado.`);
-    if (reconTimer) { clearTimeout(reconTimer); reconTimer = null; }
-    return;
-  }
+      if (connection === "open") {
+        console.log(`✅ Subbot ${dir} conectado.`);
+        if (reconTimer) { clearTimeout(reconTimer); reconTimer = null; }
+        return;
+      }
 
-  if (connection === "close") {
-    const rc = new Boom(lastDisconnect?.error)?.output.statusCode ||
-               lastDisconnect?.error?.output?.statusCode || 0;
-    const readable = DisconnectReason[rc] || `Desconocido (${rc})`;
-    console.log(`⚠️  ${dir} desconectado: ${readable}`);
+      if (connection === "close") {
+        /* Código de cierre */
+        const reasonCode = new Boom(lastDisconnect?.error)?.output.statusCode ||
+                           lastDisconnect?.error?.output?.statusCode;
+        const readable   = DisconnectReason[reasonCode] || `Desconocido (${reasonCode})`;
+        console.log(`⚠️  ${dir} desconectado ⇒ ${readable}`);
 
-    const cierreDefinitivo = [
-      DisconnectReason.loggedOut,
-      DisconnectReason.badSession,
-      DisconnectReason.connectionReplaced,
-      DisconnectReason.deviceNotLoggedIn,
-      401
-    ].includes(rc);
+        /* Borrar SOLO si es cierre definitivo */
+        const cierreDefinitivo = [
+          DisconnectReason.loggedOut,
+          DisconnectReason.badSession,
+          401
+        ].includes(reasonCode);
 
-    if (cierreDefinitivo) {
-      console.log(`🗑️  Eliminando sesión de ${dir}.`);
-      try { fs.rmSync(sessionPath, { recursive: true, force: true }); } catch {}
-      delete global.subBots[sessionPath];
-      subSock.end();                       // libera recursos
-      return;
-    }
+        if (cierreDefinitivo) {
+          console.log(`🗑️  Eliminando sesión de ${dir} (cierre definitivo).`);
+          if (fs.existsSync(sessionPath)) fs.rmSync(sessionPath, { recursive: true, force: true });
+          delete global.subBots[sessionPath];
+          return;
+        }
 
-    /* reconexión suave */
-    if (!reconTimer) {
-      reconTimer = setTimeout(() => {
-        console.log(`🔄 Reintentando ${dir}…`);
-        delete global.subBots[sessionPath];
-        subSock.end();                     // cierra socket viejo
-        iniciarSubbot(sessionPath);
-      }, 5_000);
-    }
-  }
-});
+        /* Caso contrario: reconectar sin borrar credenciales */
+        if (!reconTimer) {
+          reconTimer = setTimeout(() => {
+            console.log(`🔄 Reintentando conexión de ${dir}…`);
+            delete global.subBots[sessionPath];
+            iniciarSubbot(sessionPath);
+          }, 5_000);
+        }
+      }
+    });
 
       subSock.ev.on("group-participants.update", async (update) => {
   try {
