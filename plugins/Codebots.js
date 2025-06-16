@@ -11,44 +11,43 @@ const {
   DisconnectReason
 } = require('@whiskeysockets/baileys');
 
-/* ⬇️  Importa la función que inicia UN sub-bot */
-const { iniciarSubbot } = require('../indexsubbots');   // ← CAMBIADO
+const { iniciarSubbot } = require('../indexsubbots');
 
 const MAX_SUBBOTS = 100;
 
-const handler = async (msg, { conn, command, sock }) => {
+/* Helper: extrae solo los dígitos del JID (+ soporta multi-device) */
+const jidToPhone = jid =>
+  (jid.includes('@') ? jid.split('@')[0] : jid)  // quita dominio
+    .split(':')[0]                               // quita sufijo :device
+    .replace(/\D/g, '');                         // deja solo números
+
+const handler = async (msg, { conn, command }) => {
   const usarPairingCode = ["sercode", "code"].includes(command);
   let sentCodeMessage = false;
 
-  function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
+  const sleep = ms => new Promise(res => setTimeout(res, ms));
 
   async function serbot() {
     try {
-      const number      = msg.key?.participant || msg.key.remoteJid;
+      const rawJid      = msg.key?.participant || msg.key.remoteJid;
       const sessionDir  = path.join(__dirname, "../subbots");
-      const sessionPath = path.join(sessionDir, number);
-      const rid         = number.split("@")[0];
+      const sessionPath = path.join(sessionDir, rawJid);
+      const rid         = jidToPhone(rawJid);       // ← AJUSTE CLAVE
 
-      /* ───────── VERIFICACIÓN DE LÍMITE ───────── */
+      /* ─── Límite de 100 sub-bots ─────────────────────────── */
       if (!fs.existsSync(sessionDir)) fs.mkdirSync(sessionDir, { recursive: true });
-
-      const subbotDirs = fs.readdirSync(sessionDir)
+      const totalSubs = fs.readdirSync(sessionDir)
         .filter(d => fs.existsSync(path.join(sessionDir, d, "creds.json")));
-
-      if (subbotDirs.length >= MAX_SUBBOTS) {
+      if (totalSubs.length >= MAX_SUBBOTS) {
         await conn.sendMessage(msg.key.remoteJid, {
-          text: `🚫 *Límite alcanzado:* existen ${subbotDirs.length}/${MAX_SUBBOTS} sesiones de sub-bot activas.\nVuelve a intentarlo más tarde.`
+          text: `🚫 Límite alcanzado: ${totalSubs.length}/${MAX_SUBBOTS} sub-bots activos.`
         }, { quoted: msg });
         return;
-      } else {
-        const restantes = MAX_SUBBOTS - subbotDirs.length;
-        await conn.sendMessage(msg.key.remoteJid, {
-          text: `ℹ️ Quedan *${restantes}* espacios disponibles para conectar nuevos sub-bots.`
-        }, { quoted: msg });
       }
-      /* ─────────────────────────────────────────── */
+      await conn.sendMessage(msg.key.remoteJid, {
+        text: `ℹ️ Espacios libres: ${MAX_SUBBOTS - totalSubs.length}`,
+        quoted: msg
+      });
 
       await conn.sendMessage(msg.key.remoteJid, { react: { text: '⌛', key: msg.key } });
 
@@ -73,7 +72,7 @@ const handler = async (msg, { conn, command, sock }) => {
       socky.ev.on("connection.update", async ({ qr, connection, lastDisconnect }) => {
         if (qr && !sentCodeMessage) {
           if (usarPairingCode) {
-            const code = await socky.requestPairingCode(rid);
+            const code = await socky.requestPairingCode(rid);   // usa número limpio
             await conn.sendMessage(msg.key.remoteJid, {
               video:  { url: "https://cdn.russellxz.click/b0cbbbd3.mp4" },
               caption:"🔐 *Código generado:*\nAbre WhatsApp > Vincular dispositivo y pega el siguiente código:",
@@ -85,7 +84,7 @@ const handler = async (msg, { conn, command, sock }) => {
             const qrImage = await QRCode.toBuffer(qr);
             await conn.sendMessage(msg.key.remoteJid, {
               image: qrImage,
-              caption: `📲 Escanea este código QR desde *WhatsApp > Vincular dispositivo* para conectarte como sub-bot.`
+              caption: `📲 Escanea este código QR desde *WhatsApp > Vincular dispositivo*.`
             }, { quoted: msg });
           }
           sentCodeMessage = true;
@@ -97,58 +96,19 @@ const handler = async (msg, { conn, command, sock }) => {
               text: `╭───〔 *🤖 SUBBOT CONECTADO* 〕───╮
 │
 │ ✅ *Bienvenido a Azura Ultra 2.0*
-│
-│ Ya eres parte del mejor sistema de juegos RPG
-│
-│ 🛠️ Usa los siguientes comandos para comenzar:
-│
-│ ${global.prefix}help
-│ ${global.prefix}menu
-│
-│ ⚔️ Disfruta de las funciones del subbot
-│ y conquista el mundo digital
-│
-│ ℹ️ Por defecto, el subbot está en *modo privado*,
-│ lo que significa que *solo tú puedes usarlo*.
-│
-│ Usa el comando:
-│ #menu
-│ (para ver configuraciones y cómo hacer
-│ que otras personas puedan usarlo.)
-│
-│ ➕ Los prefijos por defecto son: *. y #*
-│ Si quieres cambiarlos, usa:
-│ #setprefix
-│
-│ 🔄 Si notas que el subbot *no responde al instante*
-│ o tarda mucho *aunque esté conectado*, no te preocupes.
-│ Puede ser un fallo temporal.
-│
-│ En ese caso, simplemente ejecuta:
-│ #delbots
-│ para eliminar tu sesión y luego vuelve a conectarte usando:
-│ #serbot o para code si no quieres qr usa: #code o #sercode. 
-│ hasta que se conecte correctamente.
-│
-│ Esto ayuda a establecer una conexión *estable y funcional*.
+│ Usa ${global.prefix}help o ${global.prefix}menu
+│ para ver comandos.
 │
 ╰────✦ *Sky Ultra Plus* ✦────╯`
             }, { quoted: msg });
-
             await conn.sendMessage(msg.key.remoteJid, { react: { text: "🔁", key: msg.key } });
-
-            /* Inicia SOLO la sesión recién creada */
-            try {
-              await iniciarSubbot(sessionPath);      // ← CAMBIADO
-            } catch (err) {
-              console.error("[Subbots] Error al iniciar sesión nueva:", err);
-            }
+            try { await iniciarSubbot(sessionPath); } catch (err) { console.error("[Subbots] Error:", err); }
             break;
 
           case "close": {
-            const reason       = new Boom(lastDisconnect?.error)?.output.statusCode ||
-                                  lastDisconnect?.error?.output?.statusCode;
-            const messageError = DisconnectReason[reason] || `Código desconocido: ${reason}`;
+            const reason = new Boom(lastDisconnect?.error)?.output.statusCode ||
+                           lastDisconnect?.error?.output?.statusCode;
+            const msgErr = DisconnectReason[reason] || `Código desconocido: ${reason}`;
 
             const eliminarSesion = () => {
               if (fs.existsSync(sessionPath)) fs.rmSync(sessionPath, { recursive: true, force: true });
@@ -159,39 +119,22 @@ const handler = async (msg, { conn, command, sock }) => {
               case DisconnectReason.badSession:
               case DisconnectReason.loggedOut:
                 await conn.sendMessage(msg.key.remoteJid, {
-                  text: `⚠️ *Sesión eliminada.*\n${messageError}\nUsa ${global.prefix}serbot para volver a conectar.`
+                  text: `⚠️ Sesión eliminada.\n${msgErr}\nReintenta con ${global.prefix}serbot`
                 }, { quoted: msg });
                 eliminarSesion();
                 break;
 
               case DisconnectReason.restartRequired:
-                if (reconnectionAttempts < maxReconnectionAttempts) {
-                  reconnectionAttempts++;
+                if (reconnectionAttempts++ < maxReconnectionAttempts) {
                   await sleep(3000);
-                  await serbot();
-                  return;
+                  return serbot();
                 }
-                await conn.sendMessage(msg.key.remoteJid, { text: `⚠️ *Reintentos de conexión fallidos.*` }, { quoted: msg });
-                break;
-
-              case DisconnectReason.connectionReplaced:
-                console.log(`ℹ️ Sesión reemplazada por otra instancia.`);
+                await conn.sendMessage(msg.key.remoteJid, { text: `⚠️ Reintentos fallidos.` }, { quoted: msg });
                 break;
 
               default:
                 await conn.sendMessage(msg.key.remoteJid, {
-                  text: `╭───〔 *⚠️ SUBBOT* 〕───╮
-│
-│⚠️ *Problema de conexión detectado:*
-│ ${messageError}
-│ Intentando reconectar...
-│
-│ 🔄 Si sigues en problemas, ejecuta:
-│ #delbots
-│ para eliminar tu sesión y conéctate de nuevo con:
-│ #serbot  /  #code
-│
-╰────✦ *Sky Ultra Plus* ✦────╯`
+                  text: `⚠️ Problema de conexión: ${msgErr}\nIntentando reconectar…`
                 }, { quoted: msg });
                 break;
             }
@@ -204,7 +147,7 @@ const handler = async (msg, { conn, command, sock }) => {
 
     } catch (e) {
       console.error("❌ Error en serbot:", e);
-      await conn.sendMessage(msg.key.remoteJid, { text: `❌ *Error inesperado:* ${e.message}` }, { quoted: msg });
+      await conn.sendMessage(msg.key.remoteJid, { text: `❌ Error inesperado: ${e.message}` }, { quoted: msg });
     }
   }
 
