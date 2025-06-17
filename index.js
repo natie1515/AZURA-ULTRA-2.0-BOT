@@ -224,7 +224,12 @@ setInterval(async () => {
             }
 
 // Ruta de los archivos a limpiar
-const archivosAntidelete = ['./antidelete.json', './antideletepri.json'];
+const archivosAntidelete = [
+  './antidelete.json',
+  './antideletepri.json',
+  './gruposu.json',
+  './prisu.json'
+];
 
 function limpiarAntidelete() {
   for (const archivo of archivosAntidelete) {
@@ -242,7 +247,8 @@ setInterval(limpiarAntidelete, 30 * 60 * 1000); // 30 min
 limpiarAntidelete();
 //cada 30 minutos antidelete          
           
-// Función para revisar y actualizar grupos cada 5 segundos
+
+          // Función para revisar y actualizar grupos cada 5 segundos
 setInterval(async () => {
   try {
     const ahora = Date.now();
