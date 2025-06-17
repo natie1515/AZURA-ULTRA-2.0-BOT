@@ -6,9 +6,8 @@ const {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
-- DisconnectReason
-+ DisconnectReason,
-+ downloadContentFromMessage   // ← AÑADIDO
+  DisconnectReason,
+  downloadContentFromMessage          // ← función para descargar multimedia
 } = require("@whiskeysockets/baileys");
 
 /* ─── Registro global para evitar duplicados ─────────────── */
