@@ -32,6 +32,11 @@ const handler = async (msg, { conn, args }) => {
     }, { quoted: msg });
   }
 
+  // ✅ Reacción inicial
+  await conn.sendMessage(msg.key.remoteJid, {
+    react: { text: "💋", key: msg.key }
+  });
+
   const sender = (msg.key.participant || msg.key.remoteJid).replace(/[^0-9]/g, "");
   const groupId = msg.key.remoteJid;
 
