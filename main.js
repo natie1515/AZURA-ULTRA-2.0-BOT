@@ -3928,6 +3928,12 @@ case 'menu': {
 ⎔ ${global.prefix}reglas
 ⎔ ${global.prefix}combos
 ⎔ ${global.prefix}sorteo
+⎔ ${global.prefix}setpeliculas
+⎔ ${global.prefix}peliculas
+⎔ ${global.prefix}settramites
+⎔ ${global.prefix}tramites
+⎔ ${global.prefix}setcanvas
+⎔ ${global.prefix}canvas
 
 ╭──────────────╮  
 │ ✦ 𝙄𝘼 - 𝘾𝙃𝘼𝙏 𝘽𝙊𝙏 ✦ │  
