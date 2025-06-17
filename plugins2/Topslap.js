@@ -61,7 +61,7 @@ const handler = async (msg, { conn }) => {
 
   const mensaje = `📊 *TOP DE CACHETAZOS* 👋\n\n` +
                   `👊 *Más violentos:*\n${topDados}\n\n` +
-                  `────────────────────────\n\n` +
+                  `──────────────────\n\n` +
                   `😵 *Más cacheteados:*\n${topRecibidos}`;
 
   await conn.sendMessage(chatId, {
