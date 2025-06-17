@@ -10,54 +10,48 @@ const {
 } = require("@whiskeysockets/baileys");
 const { Boom } = require("@hapi/boom");
 
-/* ─── Manejo global de errores ─────────────────────────────── */
 process.on("uncaughtException",  err => console.error("❌ Excepción no atrapada:", err));
-process.on("unhandledRejection", err => console.error("❌ Promesa rechazada sin manejar:", err));
+process.on("unhandledRejection", err => console.error("❌ Promesa rechazada:", err));
 
-/* ─── Registro global de sockets ───────────────────────────── */
 global.subBots = global.subBots || {};
 
-/* ─── Carga dinámica de plugins ────────────────────────────── */
 function loadSubPlugins() {
   const dir = path.join(__dirname, "plugins2");
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir)
     .filter(f => f.endsWith(".js"))
     .map(f => {
-      delete require.cache[path.join(dir, f)];      // hot-reload
+      delete require.cache[path.join(dir, f)];
       return require(path.join(dir, f));
     })
     .filter(p => p && p.command);
 }
 
 async function handleSubCommand(sock, msg, command, args) {
-  const plugin = loadSubPlugins()
-    .find(p => p.command.includes(command.toLowerCase()));
+  const plugin = loadSubPlugins().find(p => p.command.includes(command.toLowerCase()));
   if (plugin) {
     return plugin(msg, {
       conn: sock,
       text: args.join(" "),
       args,
       command,
-      usedPrefix: "."
+      usedPrefix: ".",
     });
   }
 }
 
-/* ─── Iniciar un sub-bot ───────────────────────────────────── */
 async function iniciarSubbot(sessionPath) {
-  if (global.subBots[sessionPath]) return;               // ya activo
-
-  /* 1️⃣  Asegura carpeta */
+  if (global.subBots[sessionPath]) return;
   if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
 
   const dir = path.basename(sessionPath);
-  let reconTimer  = null;
+  let reconTimer = null;
   let deleteTimer = null;
 
   try {
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
     const { version }          = await fetchLatestBaileysVersion();
+
     const subSock = makeWASocket({
       version,
       logger: pino({ level: "silent" }),
@@ -71,7 +65,7 @@ async function iniciarSubbot(sessionPath) {
     global.subBots[sessionPath] = subSock;
     subSock.ev.on("creds.update", saveCreds);
 
-    /* ── Conexión / Reconexión ──────────────────────────── */
+    /* ── Conexión / Reconexión ───────────────────────── */
     subSock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
       if (connection === "open") {
         console.log(`✅ Subbot ${dir} conectado.`);
@@ -86,11 +80,13 @@ async function iniciarSubbot(sessionPath) {
         const human = DisconnectReason[code] || `Desconocido (${code})`;
         console.log(`⚠️  ${dir} desconectado ⇒ ${human}`);
 
-        const cierreDef = [DisconnectReason.loggedOut,
-                           DisconnectReason.badSession,
-                           401].includes(code);
+        const cierreDef = [
+          DisconnectReason.loggedOut,
+          DisconnectReason.badSession,
+          401
+        ].includes(code);
 
-        /* 🔴 Cierre definitivo → borra tras 15 s */
+        /* cierre definitivo → borra en 15 s */
         if (cierreDef) {
           if (deleteTimer) clearTimeout(deleteTimer);
           deleteTimer = setTimeout(() => {
@@ -101,12 +97,12 @@ async function iniciarSubbot(sessionPath) {
           return;
         }
 
-        /* 🟡 Desconexión temporal → reintento y posible borrado */
+        /* desconexión temporal → reintento 5 s, borrado 30 s */
         if (!reconTimer) {
           console.log(`🔄  Reintentando ${dir} en 5 s…`);
           reconTimer = setTimeout(() => {
-            subSock.end();                       // 2️⃣  cierra socket viejo
-            iniciarSubbot(sessionPath);          // nuevo intento
+            subSock.end();                 // cierra socket viejo
+            iniciarSubbot(sessionPath);    // nuevo intento
           }, 5_000);
         }
 
@@ -122,7 +118,7 @@ async function iniciarSubbot(sessionPath) {
       }
     });
 
-    /* ── Mensajes ───────────────────────────────────────── */
+    /* ── Mensajes ───────────────────────────────────── */
     subSock.ev.on("group-participants.update", async (update) => {
   try {
     if (!update.id.endsWith("@g.us")) return;
@@ -375,25 +371,27 @@ if (!isGroup) {
             await handleSubCommand(subSock, m, command, args).catch(err => {
               console.error("❌ Error ejecutando comando del subbot:", err);
             });
+          } catch (err) {
+            console.error("❌ Error interno en mensajes.upsert:", err);
+          }
+        });
 
   } catch (err) {
     console.error(`❌ Error iniciando ${dir}:`, err);
   }
 }
 
-/* ─── Carga inicial ───────────────────────────────────────── */
+/* ── Carga inicial ───────────────────────────────────────── */
 async function cargarSubbots() {
   const base = path.resolve(__dirname, "subbots");
   if (!fs.existsSync(base)) fs.mkdirSync(base, { recursive: true });
 
-  const dirs = fs.readdirSync(base).filter(d =>
-    fs.existsSync(path.join(base, d, "creds.json"))
-  );
+  const dirs = fs.readdirSync(base)
+    .filter(d => fs.existsSync(path.join(base, d, "creds.json")));
   console.log(`🤖 Inicializando ${dirs.length} sub-bot(s)…`);
   for (const d of dirs) await iniciarSubbot(path.join(base, d));
 }
 
 cargarSubbots();
 
-/* ─── Exportaciones ───────────────────────────────────────── */
 module.exports = { cargarSubbots, iniciarSubbot };
