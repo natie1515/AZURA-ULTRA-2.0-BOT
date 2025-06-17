@@ -5,7 +5,10 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore
+  makeCacheableSignalKeyStore,
+- DisconnectReason
++ DisconnectReason,
++ downloadContentFromMessage   // ← AÑADIDO
 } = require("@whiskeysockets/baileys");
 
 /* ─── Registro global para evitar duplicados ─────────────── */
