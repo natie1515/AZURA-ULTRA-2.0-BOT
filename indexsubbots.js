@@ -57,7 +57,7 @@ async function iniciarSubbot(sessionPath) {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" }))
       },
-      browser: ["Cortana Subbot", "Firefox", "2.0"]
+      browser: ["Azura Subbot", "Firefox", "2.0"]
     });
 
     global.subBots[sessionPath] = subSock;             // registra
