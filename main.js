@@ -11264,11 +11264,11 @@ case 'apk': {
     }
     break;
 }
-case 'chatgpt':
-case 'ia': {
+
+case 'chatgpt': {
     const fetch = require('node-fetch');
 
-    if (!args.length) {
+    if (!text.length) {
         await sock.sendMessage(msg.key.remoteJid, { 
             text: `⚠️ *Uso incorrecto.*\n📌 Ejemplo: \`${global.prefix}chatgpt Hola, ¿cómo estás?\`` 
         }, { quoted: msg });
