@@ -1,30 +1,27 @@
-const path  = require("path");
-const fs    = require("fs");
-const pino  = require("pino");
+const path = require("path");
+const fs   = require("fs");
+const pino = require("pino");
 const {
   default: makeWASocket,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore,
-  DisconnectReason
+  makeCacheableSignalKeyStore
 } = require("@whiskeysockets/baileys");
-const { Boom } = require("@hapi/boom");
 
-process.on("uncaughtException",  err => console.error("❌ Excepción no atrapada:", err));
-process.on("unhandledRejection", err => console.error("❌ Promesa rechazada:", err));
-
+/* ─── Registro global para evitar duplicados ─────────────── */
 global.subBots = global.subBots || {};
 
+/* ─── Carga dinámica de plugins (sin hot-reload agresivo) ── */
 function loadSubPlugins() {
-  const dir = path.join(__dirname, "plugins2");
-  if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir)
-    .filter(f => f.endsWith(".js"))
-    .map(f => {
-      delete require.cache[path.join(dir, f)];
-      return require(path.join(dir, f));
-    })
-    .filter(p => p && p.command);
+  const out  = [];
+  const dir  = path.join(__dirname, "plugins2");
+  if (!fs.existsSync(dir)) return out;
+
+  for (const file of fs.readdirSync(dir).filter(f => f.endsWith(".js"))) {
+    const plugin = require(path.join(dir, file));
+    if (plugin && plugin.command) out.push(plugin);
+  }
+  return out;
 }
 
 async function handleSubCommand(sock, msg, command, args) {
@@ -35,18 +32,17 @@ async function handleSubCommand(sock, msg, command, args) {
       text: args.join(" "),
       args,
       command,
-      usedPrefix: ".",
+      usedPrefix: "."
     });
   }
 }
 
+/* ─── Iniciar un sub-bot (exportado) ─────────────────────── */
 async function iniciarSubbot(sessionPath) {
-  if (global.subBots[sessionPath]) return;
-  if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
+  if (global.subBots[sessionPath]) return;               // ya activo
 
   const dir = path.basename(sessionPath);
-  let reconTimer = null;
-  let deleteTimer = null;
+  let reconnectionTimer = null;
 
   try {
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
@@ -59,66 +55,39 @@ async function iniciarSubbot(sessionPath) {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" }))
       },
-      browser: ["Azura Subbot", "Firefox", "2.0"]
+      browser: ["Cortana Subbot", "Firefox", "2.0"]
     });
 
-    global.subBots[sessionPath] = subSock;
+    global.subBots[sessionPath] = subSock;             // registra
+
     subSock.ev.on("creds.update", saveCreds);
 
-    /* ── Conexión / Reconexión ───────────────────────── */
+    /* ── Conexión / Reconexión (MISMA lógica vieja) ── */
     subSock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
       if (connection === "open") {
         console.log(`✅ Subbot ${dir} conectado.`);
-        if (reconTimer)  { clearTimeout(reconTimer);  reconTimer  = null; }
-        if (deleteTimer) { clearTimeout(deleteTimer); deleteTimer = null; }
-        return;
-      }
-
-      if (connection === "close") {
-        const code  = new Boom(lastDisconnect?.error)?.output.statusCode ||
-                      lastDisconnect?.error?.output?.statusCode;
-        const human = DisconnectReason[code] || `Desconocido (${code})`;
-        console.log(`⚠️  ${dir} desconectado ⇒ ${human}`);
-
-        const cierreDef = [
-          DisconnectReason.loggedOut,
-          DisconnectReason.badSession,
-          401
-        ].includes(code);
-
-        /* cierre definitivo → borra en 15 s */
-        if (cierreDef) {
-          if (deleteTimer) clearTimeout(deleteTimer);
-          deleteTimer = setTimeout(() => {
-            if (fs.existsSync(sessionPath)) fs.rmSync(sessionPath, { recursive: true, force: true });
-            delete global.subBots[sessionPath];
-            console.log(`🗑️  ${dir} eliminado (cierre definitivo).`);
-          }, 15_000);
-          return;
+        if (reconnectionTimer) {
+          clearTimeout(reconnectionTimer);
+          reconnectionTimer = null;
         }
+      } else if (connection === "close") {
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        console.log(`❌ Subbot ${dir} desconectado (status: ${statusCode}). Esperando 20 s antes de eliminar sesión…`);
 
-        /* desconexión temporal → reintento 5 s, borrado 30 s */
-        if (!reconTimer) {
-          console.log(`🔄  Reintentando ${dir} en 5 s…`);
-          reconTimer = setTimeout(() => {
-            subSock.end();                 // cierra socket viejo
-            iniciarSubbot(sessionPath);    // nuevo intento
-          }, 5_000);
-        }
+        reconnectionTimer = setTimeout(() => {
+          if (fs.existsSync(sessionPath)) {
+            fs.rmSync(sessionPath, { recursive: true, force: true });
+            console.log(`🗑️ Subbot ${dir} eliminado por desconexión prolongada.`);
+          }
+          delete global.subBots[sessionPath];
+        }, 20_000);
 
-        if (!deleteTimer) {
-          deleteTimer = setTimeout(() => {
-            if (fs.existsSync(sessionPath)) {
-              fs.rmSync(sessionPath, { recursive: true, force: true });
-              console.log(`🗑️  ${dir} eliminado tras 30 s sin reconectar.`);
-            }
-            delete global.subBots[sessionPath];
-          }, 30_000);
-        }
+        /* Reintento en 5 s */
+        setTimeout(() => iniciarSubbot(sessionPath), 5_000);
       }
     });
 
-    /* ── Mensajes ───────────────────────────────────── */
+    /* ── Núcleo de comandos ─────────────────────────── */
     subSock.ev.on("group-participants.update", async (update) => {
   try {
     if (!update.id.endsWith("@g.us")) return;
@@ -375,23 +344,29 @@ if (!isGroup) {
             console.error("❌ Error interno en mensajes.upsert:", err);
           }
         });
-
+    
   } catch (err) {
-    console.error(`❌ Error iniciando ${dir}:`, err);
+    console.error(`❌ Error cargando subbot ${dir}:`, err);
   }
 }
 
-/* ── Carga inicial ───────────────────────────────────────── */
+/* ─── Carga inicial al arrancar ─────────────────────────── */
 async function cargarSubbots() {
   const base = path.resolve(__dirname, "subbots");
-  if (!fs.existsSync(base)) fs.mkdirSync(base, { recursive: true });
+  if (!fs.existsSync(base)) {
+    fs.mkdirSync(base, { recursive: true });
+    console.log("📁 Carpeta ./subbots creada automáticamente.");
+  }
 
   const dirs = fs.readdirSync(base)
     .filter(d => fs.existsSync(path.join(base, d, "creds.json")));
-  console.log(`🤖 Inicializando ${dirs.length} sub-bot(s)…`);
+
+  console.log(`🤖 Cargando ${dirs.length} subbot(s) conectados…`);
   for (const d of dirs) await iniciarSubbot(path.join(base, d));
 }
 
+/* ─── Ejecución inmediata ──────────────────────────────── */
 cargarSubbots();
 
+/* ─── Exportaciones ─────────────────────────────────────── */
 module.exports = { cargarSubbots, iniciarSubbot };
