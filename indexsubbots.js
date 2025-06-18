@@ -69,11 +69,10 @@ async function iniciarSubbot(sessionPath) {
     subSock.ev.on("creds.update", saveCreds);
 
     /* ── Conexión / Reconexión (MISMA lógica vieja) ── */
-    subSock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
+subSock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
   if (connection === "open") {
     console.log(`✅ Subbot ${dir} conectado.`);
 
-    /* — inicializa sender-key — */
     subSock
       .sendMessage("status@broadcast", { text: "🟢 sub-bot online" })
       .then(r => subSock.sendMessage("status@broadcast", { delete: r.key }))
@@ -86,16 +85,10 @@ async function iniciarSubbot(sessionPath) {
 
   } else if (connection === "close") {
     const statusCode = lastDisconnect?.error?.output?.statusCode;
-    console.log(`❌ Subbot ${dir} desconectado (status: ${statusCode}). Intentando reconectar…`);
+    console.log(`❌ Subbot ${dir} desconectado (status: ${statusCode}).`);
 
-    /* reintento en 5 s */
-    if (!reconnectionTimer) {
-      reconnectionTimer = setTimeout(() => {
-        delete global.subBots[sessionPath];   // liberar registro, PERO sin borrar carpeta
-        iniciarSubbot(sessionPath);           // nuevo intento
-        reconnectionTimer = null;
-      }, 5_000);
-    }
+    /* ya no reintenta: solo libera el registro */
+    delete global.subBots[sessionPath];
   }
 });
 
