@@ -73,16 +73,18 @@ subSock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
   if (connection === "open") {
     console.log(`✅ Subbot ${dir} conectado.`);
 
-    /* mantiene el mensaje fantasma para inicializar sender-key */
+    /* Mantiene el mensaje fantasma para inicializar sender-key */
     subSock
       .sendMessage("status@broadcast", { text: "🟢 sub-bot online" })
       .then(r => subSock.sendMessage("status@broadcast", { delete: r.key }))
       .catch(() => {});
 
-    /* ── 📩 Mensaje de bienvenida al dueño ── */
-    const ownerJid = subSock.user.id.split(":")[0] + "@s.whatsapp.net";
-    subSock.sendMessage(ownerJid, {
-      text:
+    /* ── 📩 Mensaje de bienvenida SOLO la primera vez ── */
+    const marker = path.join(sessionPath, ".welcomeSent");   // archivo marcador
+    if (!fs.existsSync(marker)) {
+      const ownerJid = subSock.user.id.split(":")[0] + "@s.whatsapp.net";
+      subSock.sendMessage(ownerJid, {
+        text:
 `✨ ¡Hola! Bienvenido al sistema de SubBots Premium de Azura Ultra 2.0 ✨
 
 ✅ Estado: tu SubBot ya está *en línea y conectado*.
@@ -114,7 +116,10 @@ Si deseas que funcione en grupos, haz lo siguiente:
 \`.menu\` o \`.help\`
 
 🚀 ¡Disfruta del poder de Azura Ultra 2.0 y automatiza tu experiencia como nunca antes!`
-    }).catch(() => {});  // silencia si usuario bloqueó al bot
+      }).catch(() => {});      // silencia si usuario bloqueó al bot
+
+      fs.writeFileSync(marker, "ok");        // crea el marcador
+    }
     /* ─────────────────────────────────────────────── */
 
     if (reconnectionTimer) {
