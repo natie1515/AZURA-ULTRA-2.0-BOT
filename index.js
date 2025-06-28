@@ -49,7 +49,41 @@ async function getPrompt() {
   }
 }
 
-  
+//tres en ralla
+function pintarTablero(tab) {
+  return `
+╭───────╮
+│ ${tab[0]} │ ${tab[1]} │ ${tab[2]} │
+│ ${tab[3]} │ ${tab[4]} │ ${tab[5]} │
+│ ${tab[6]} │ ${tab[7]} │ ${tab[8]} │
+╰───────╯`;
+}
+
+function checkWin(t) {
+  const wins = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+  return wins.some(([a,b,c]) => t[a] === t[b] && t[b] === t[c]);
+}
+
+function registrarResultado(winner, loser) {
+  const fs = require("fs");
+  const path = require("path");
+  const file = path.resolve("ttt.json");
+  let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+  if (!db[winner]) db[winner] = { jugadas: 0, ganadas: 0, perdidas: 0 };
+  if (!db[loser])  db[loser]  = { jugadas: 0, ganadas: 0, perdidas: 0 };
+
+  db[winner].jugadas++;
+  db[winner].ganadas++;
+  db[loser].jugadas++;
+  db[loser].perdidas++;
+
+  fs.writeFileSync(file, JSON.stringify(db, null, 2));
+}
+//fin 3 en ralla  
 function cleanResponse(text) {
   if (!text) return '';
   return text
@@ -637,6 +671,58 @@ if (isGroup && activos.antis?.[chatId] && !fromMe && stickerMsg) {
   }
 }
 // === FIN LÓGICA ANTIS STICKERS ===
+
+// === INICIO LÓGICA JUEGO 3 EN RAYA ===
+const chatId = m.key.remoteJid;
+const sender = (m.key.participant || m.key.remoteJid).replace(/[^0-9]/g, "");
+const msgText = m.message?.conversation || m.message?.extendedTextMessage?.text || "";
+
+if (chatId?.endsWith("@g.us") && /^[1-9]$/.test(msgText)) {
+  const partida = Object.values(global.tttGames || {}).find(g =>
+    g.jugadores.includes(sender) && g.aceptada
+  );
+
+  if (partida && partida.turno === sender) {
+    const idx = parseInt(msgText) - 1;
+    if (["❌", "⭕"].includes(partida.tablero[idx])) {
+      await conn.sendMessage(chatId, {
+        text: "⚠️ Esa casilla ya fue jugada.",
+        quoted: m
+      });
+    } else {
+      const simbolo = partida.jugadores[0] === sender ? "❌" : "⭕";
+      partida.tablero[idx] = simbolo;
+
+      const tablero = pintarTablero(partida.tablero);
+      const ganador = checkWin(partida.tablero);
+      const empate = partida.tablero.every(c => ["❌", "⭕"].includes(c));
+      const siguiente = partida.jugadores.find(j => j !== sender);
+
+      if (ganador) {
+        registrarResultado(sender, siguiente);
+        await conn.sendMessage(chatId, {
+          text: `🏆 ¡@${sender} ha ganado la partida *${partida.nombre}*!\n\n${tablero}`,
+          mentions: partida.jugadores.map(j => `${j}@s.whatsapp.net`)
+        });
+        delete global.tttGames[partida.id];
+      } else if (empate) {
+        await conn.sendMessage(chatId, {
+          text: `🤝 La partida *${partida.nombre}* terminó en *empate*.\n\n${tablero}`,
+          mentions: partida.jugadores.map(j => `${j}@s.whatsapp.net`)
+        });
+        delete global.tttGames[partida.id];
+      } else {
+        partida.turno = siguiente;
+        await conn.sendMessage(chatId, {
+          text: `🎯 Turno de @${siguiente}\n\n${tablero}`,
+          mentions: [`${siguiente}@s.whatsapp.net`]
+        });
+      }
+    }
+  }
+}
+// === FIN LÓGICA JUEGO 3 EN RAYA ===    
+    
 // === INICIO GUARDADO ANTIDELETE ===
 try {
   const activos = fs.existsSync('./activos.json')
