@@ -673,47 +673,44 @@ if (isGroup && activos.antis?.[chatId] && !fromMe && stickerMsg) {
 // === FIN LÓGICA ANTIS STICKERS ===
 
 // === INICIO LÓGICA JUEGO 3 EN RAYA ===
-// === INICIO LÓGICA JUEGO 3 EN RAYA ===
-
-const msgText = m.message?.conversation || m.message?.extendedTextMessage?.text || "";
-
-if (chatId?.endsWith("@g.us") && /^[1-9]$/.test(msgText)) {
+if (chatId?.endsWith("@g.us") && /^[1-9]$/.test(messageText)) {
+  const senderNum = (msg.key.participant || msg.key.remoteJid).replace(/[^0-9]/g, "");
   const partida = Object.values(global.tttGames || {}).find(g =>
-    g.jugadores.includes(sender) && g.aceptada
+    g.jugadores.includes(senderNum) && g.aceptada
   );
 
-  if (partida && partida.turno === sender) {
-    const idx = parseInt(msgText) - 1;
+  if (partida && partida.turno === senderNum) {
+    const idx = parseInt(messageText) - 1;
     if (["❌", "⭕"].includes(partida.tablero[idx])) {
-      await conn.sendMessage(chatId, {
+      await sock.sendMessage(chatId, {
         text: "⚠️ Esa casilla ya fue jugada.",
-        quoted: m
+        quoted: msg
       });
     } else {
-      const simbolo = partida.jugadores[0] === sender ? "❌" : "⭕";
+      const simbolo = partida.jugadores[0] === senderNum ? "❌" : "⭕";
       partida.tablero[idx] = simbolo;
 
       const tablero = pintarTablero(partida.tablero);
       const ganador = checkWin(partida.tablero);
       const empate = partida.tablero.every(c => ["❌", "⭕"].includes(c));
-      const siguiente = partida.jugadores.find(j => j !== sender);
+      const siguiente = partida.jugadores.find(j => j !== senderNum);
 
       if (ganador) {
-        registrarResultado(sender, siguiente);
-        await conn.sendMessage(chatId, {
-          text: `🏆 ¡@${sender} ha ganado la partida *${partida.nombre}*!\n\n${tablero}`,
+        registrarResultado(senderNum, siguiente);
+        await sock.sendMessage(chatId, {
+          text: `🏆 ¡@${senderNum} ha ganado la partida *${partida.nombre || "sin nombre"}*!\n\n${tablero}`,
           mentions: partida.jugadores.map(j => `${j}@s.whatsapp.net`)
         });
         delete global.tttGames[partida.id];
       } else if (empate) {
-        await conn.sendMessage(chatId, {
-          text: `🤝 La partida *${partida.nombre}* terminó en *empate*.\n\n${tablero}`,
+        await sock.sendMessage(chatId, {
+          text: `🤝 La partida *${partida.nombre || "sin nombre"}* terminó en empate.\n\n${tablero}`,
           mentions: partida.jugadores.map(j => `${j}@s.whatsapp.net`)
         });
         delete global.tttGames[partida.id];
       } else {
         partida.turno = siguiente;
-        await conn.sendMessage(chatId, {
+        await sock.sendMessage(chatId, {
           text: `🎯 Turno de @${siguiente}\n\n${tablero}`,
           mentions: [`${siguiente}@s.whatsapp.net`]
         });
