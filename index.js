@@ -671,17 +671,17 @@ if (isGroup && activos.antis?.[chatId] && !fromMe && stickerMsg) {
 // === FIN LÓGICA ANTIS STICKERS ===
 
 // === INICIO LÓGICA DE JUGADAS TTT ===
-if (chatId?.endsWith("@g.us") && /^[1-9]$/.test(msgText)) {
+if (chatId?.endsWith("@g.us") && /^[1-9]$/.test(messageText)) {
   const partida = Object.values(global.tttGames || {}).find(g =>
     g.jugadores.includes(sender)
   );
 
   if (partida && partida.turno === sender) {
-    const idx = parseInt(msgText) - 1;
+    const idx = parseInt(messageText) - 1;
     if (["❌", "⭕"].includes(partida.tablero[idx])) {
-      await conn.sendMessage(chatId, {
+      await sock.sendMessage(chatId, {
         text: "⚠️ Esa casilla ya fue jugada.",
-        quoted: m
+        quoted: msg
       });
     } else {
       const simbolo = partida.jugadores[0] === sender ? "❌" : "⭕";
@@ -693,16 +693,16 @@ if (chatId?.endsWith("@g.us") && /^[1-9]$/.test(msgText)) {
       const siguiente = partida.jugadores.find(j => j !== sender);
 
       if (ganador) {
-        actualizarStats(sender, siguiente);
-        await conn.sendMessage(chatId, {
+        registrarResultado(sender, siguiente);
+        await sock.sendMessage(chatId, {
           text: `🏆 ¡@${sender} ha ganado la partida *${partida.nombre}*!\n\n${tablero}`,
           mentions: partida.jugadores.map(j => `${j}@s.whatsapp.net`)
         });
         clearTimeout(partida.timeout);
         delete global.tttGames[partida.id];
       } else if (empate) {
-        actualizarStats(sender, siguiente, true);
-        await conn.sendMessage(chatId, {
+        registrarResultado(sender, siguiente); // Puedes adaptar si quieres contar empates por separado
+        await sock.sendMessage(chatId, {
           text: `🤝 La partida *${partida.nombre}* terminó en *empate*.\n\n${tablero}`,
           mentions: partida.jugadores.map(j => `${j}@s.whatsapp.net`)
         });
@@ -710,7 +710,7 @@ if (chatId?.endsWith("@g.us") && /^[1-9]$/.test(msgText)) {
         delete global.tttGames[partida.id];
       } else {
         partida.turno = siguiente;
-        await conn.sendMessage(chatId, {
+        await sock.sendMessage(chatId, {
           text: `🎯 Turno de @${siguiente}\n\n${tablero}`,
           mentions: [`${siguiente}@s.whatsapp.net`]
         });
