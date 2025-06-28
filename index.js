@@ -670,45 +670,47 @@ if (isGroup && activos.antis?.[chatId] && !fromMe && stickerMsg) {
 }
 // === FIN LÓGICA ANTIS STICKERS ===
 
-// === INICIO LÓGICA JUEGO 3 EN RAYA ===
-if (chatId?.endsWith("@g.us") && /^[1-9]$/.test(messageText)) {
-  const senderNum = (msg.key.participant || msg.key.remoteJid).replace(/[^0-9]/g, "");
+// === INICIO LÓGICA DE JUGADAS TTT ===
+if (chatId?.endsWith("@g.us") && /^[1-9]$/.test(msgText)) {
   const partida = Object.values(global.tttGames || {}).find(g =>
-    g.jugadores.includes(senderNum) && g.aceptada
+    g.jugadores.includes(sender)
   );
 
-  if (partida && partida.turno === senderNum) {
-    const idx = parseInt(messageText) - 1;
+  if (partida && partida.turno === sender) {
+    const idx = parseInt(msgText) - 1;
     if (["❌", "⭕"].includes(partida.tablero[idx])) {
-      await sock.sendMessage(chatId, {
+      await conn.sendMessage(chatId, {
         text: "⚠️ Esa casilla ya fue jugada.",
-        quoted: msg
+        quoted: m
       });
     } else {
-      const simbolo = partida.jugadores[0] === senderNum ? "❌" : "⭕";
+      const simbolo = partida.jugadores[0] === sender ? "❌" : "⭕";
       partida.tablero[idx] = simbolo;
 
       const tablero = pintarTablero(partida.tablero);
       const ganador = checkWin(partida.tablero);
       const empate = partida.tablero.every(c => ["❌", "⭕"].includes(c));
-      const siguiente = partida.jugadores.find(j => j !== senderNum);
+      const siguiente = partida.jugadores.find(j => j !== sender);
 
       if (ganador) {
-        registrarResultado(senderNum, siguiente);
-        await sock.sendMessage(chatId, {
-          text: `🏆 ¡@${senderNum} ha ganado la partida *${partida.nombre || "sin nombre"}*!\n\n${tablero}`,
+        actualizarStats(sender, siguiente);
+        await conn.sendMessage(chatId, {
+          text: `🏆 ¡@${sender} ha ganado la partida *${partida.nombre}*!\n\n${tablero}`,
           mentions: partida.jugadores.map(j => `${j}@s.whatsapp.net`)
         });
+        clearTimeout(partida.timeout);
         delete global.tttGames[partida.id];
       } else if (empate) {
-        await sock.sendMessage(chatId, {
-          text: `🤝 La partida *${partida.nombre || "sin nombre"}* terminó en empate.\n\n${tablero}`,
+        actualizarStats(sender, siguiente, true);
+        await conn.sendMessage(chatId, {
+          text: `🤝 La partida *${partida.nombre}* terminó en *empate*.\n\n${tablero}`,
           mentions: partida.jugadores.map(j => `${j}@s.whatsapp.net`)
         });
+        clearTimeout(partida.timeout);
         delete global.tttGames[partida.id];
       } else {
         partida.turno = siguiente;
-        await sock.sendMessage(chatId, {
+        await conn.sendMessage(chatId, {
           text: `🎯 Turno de @${siguiente}\n\n${tablero}`,
           mentions: [`${siguiente}@s.whatsapp.net`]
         });
@@ -716,7 +718,7 @@ if (chatId?.endsWith("@g.us") && /^[1-9]$/.test(messageText)) {
     }
   }
 }
-// === FIN LÓGICA JUEGO 3 EN RAYA ===
+// === FIN LÓGICA DE JUGADAS TTT ===
     
 // === INICIO GUARDADO ANTIDELETE ===
 try {
