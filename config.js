@@ -43,7 +43,8 @@ global.owner = [
     ["525639850287"]
 ];
 
-
+global.tttGames = {};
+global.tttStats = require("./ttt.json");
 // ✅ Lista de prefijos permitidos
 global.allowedPrefixes = [
     ".", "!", "#", "?", "-", "+", "*", "~", "$", "&", "%", "=", "🔥", "💀", "✅", "🥰",
