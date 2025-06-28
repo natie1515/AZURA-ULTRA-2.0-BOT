@@ -641,7 +641,7 @@ if (isGroup && activos.antis?.[chatId] && !fromMe && stickerMsg) {
 // === FIN LÓGICA ANTIS STICKERS ===
 
 // === INICIO LÓGICA JUEGO 3 EN RAYA ===
-const chatId = m.key.remoteJid;
+// const chatId = m.key.remoteJid;  ← BORRAR ESTA LÍNEA si ya existe una igual arriba
 const sender = (m.key.participant || m.key.remoteJid).replace(/[^0-9]/g, "");
 const msgText = m.message?.conversation || m.message?.extendedTextMessage?.text || "";
 
@@ -689,7 +689,7 @@ if (chatId?.endsWith("@g.us") && /^[1-9]$/.test(msgText)) {
     }
   }
 }
-// === FIN LÓGICA JUEGO 3 EN RAYA ===    
+// === FIN LÓGICA JUEGO 3 EN RAYA ===
     
 // === INICIO GUARDADO ANTIDELETE ===
 try {
