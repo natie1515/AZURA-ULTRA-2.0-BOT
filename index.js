@@ -548,7 +548,6 @@ sock.ev.on("messages.upsert", async (messageUpsert) => {
     let messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
     let messageType = Object.keys(msg.message || {})[0];
 //prueba
-    const chatId = m.key.remoteJid;
 const sender = (m.key.participant || m.key.remoteJid).replace(/[^0-9]/g, "");
 //ok
 
