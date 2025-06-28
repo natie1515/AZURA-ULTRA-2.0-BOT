@@ -1,63 +1,56 @@
 const fs = require("fs");
 const path = require("path");
+const tttPath = path.resolve("ttt.json");
 
-const TTT_FILE = path.resolve("ttt.json");
-const partidas = fs.existsSync(TTT_FILE) ? JSON.parse(fs.readFileSync(TTT_FILE)) : {};
-const enCurso = {}; // En memoria temporal para solicitudes activas
-
-const handler = async (msg, { conn, args }) => {
+module.exports = async (msg, { conn, args }) => {
   const chatId = msg.key.remoteJid;
-  const senderId = msg.key.participant || msg.key.remoteJid;
-  const sender = senderId.replace(/[^0-9]/g, "");
-
-  if (!chatId.endsWith("@g.us")) {
-    return conn.sendMessage(chatId, {
-      text: "🎮 Este comando solo funciona en grupos."
-    }, { quoted: msg });
-  }
-
-  if (enCurso[sender]) {
-    return conn.sendMessage(chatId, {
-      text: "⏳ Ya tienes una solicitud activa o partida pendiente."
-    }, { quoted: msg });
-  }
+  const sender = (msg.key.participant || msg.key.remoteJid).replace(/[^0-9]/g, "");
 
   const ctx = msg.message?.extendedTextMessage?.contextInfo;
-  const target = ctx?.participant?.replace(/[^0-9]/g, "");
-  if (!target || target === sender) {
+  const citado = ctx?.participant?.replace(/[^0-9]/g, "");
+  const mencionado = citado || (args[0]?.includes("@") ? args[0].replace(/[^0-9]/g, "") : null);
+
+  if (!mencionado || mencionado === sender) {
     return conn.sendMessage(chatId, {
-      text: "⚠️ Debes *responder* al mensaje del jugador que deseas retar."
+      text: "🎮 Debes *citar o mencionar* a alguien para retarlo."
     }, { quoted: msg });
   }
 
-  const nombrePartida = args.join(" ").trim() || "Sin nombre";
-  const partidaId = `${sender}-${target}-${Date.now()}`;
-  const tablero = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+  // Verificar si ya hay partida pendiente
+  const yaHay = Object.values(global.tttGames).find(g =>
+    g.jugadores.includes(sender) && !g.aceptada
+  );
 
-  enCurso[sender] = {
-    id: partidaId,
-    nombre: nombrePartida,
-    jugadores: [sender, target],
-    turno: null,
-    tablero,
+  if (yaHay) {
+    return conn.sendMessage(chatId, {
+      text: `⏳ Ya tienes una partida pendiente contra @${yaHay.jugadores.find(j => j !== sender)}.`,
+      mentions: yaHay.jugadores.map(j => `${j}@s.whatsapp.net`)
+    }, { quoted: msg });
+  }
+
+  const id = Date.now();
+  const partida = {
+    id,
+    nombre: args[1] ? args.slice(1).join(" ") : "sin nombre",
+    jugadores: [sender, mencionado],
     aceptada: false,
+    turno: null,
+    tablero: Array(9).fill("⬜"),
     timestamp: Date.now()
   };
 
+  global.tttGames[id] = partida;
+
   await conn.sendMessage(chatId, {
-    text: `🎮 *¡Reto de 3 en raya!*\n\n👤 *@${sender}* ha retado a *@${target}*\n🧩 *Partida:* ${nombrePartida}\n\n👉 *@${target}*, acepta el reto usando:\n*.gottt*`,
-    mentions: [`${sender}@s.whatsapp.net`, `${target}@s.whatsapp.net`]
+    text: `🎮 *@${mencionado}* has sido retado a *3 en raya* por *@${sender}*\n\n👥 Partida: *${partida.nombre}*\n\n👉 Usa *.gottt* para aceptar.`,
+    mentions: partida.jugadores.map(j => `${j}@s.whatsapp.net`)
   }, { quoted: msg });
 
+  // Borrar si no acepta en 5 minutos
   setTimeout(() => {
-    if (enCurso[sender] && !enCurso[sender].aceptada) {
-      delete enCurso[sender];
-      conn.sendMessage(chatId, {
-        text: `⌛ La solicitud de 3 en raya expiró. ⏳`
-      });
-    }
+    const sigue = global.tttGames[id];
+    if (sigue && !sigue.aceptada) delete global.tttGames[id];
   }, 5 * 60 * 1000);
 };
 
-handler.command = ["ttt"];
-module.exports = handler;
+module.exports.command = ["ttt"];
