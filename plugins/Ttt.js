@@ -1,76 +1,77 @@
 const fs = require("fs");
 const path = require("path");
 
-const TTT_PATH = path.resolve("ttt.json");
-if (!global.tttGames) global.tttGames = {};
-
-// 🧩 Función para renderizar el tablero
-function pintarTablero(tablero) {
-  return `
-╭───┬───┬───╮
-│ ${tablero[0]} │ ${tablero[1]} │ ${tablero[2]} │
-├───┼───┼───┤
-│ ${tablero[3]} │ ${tablero[4]} │ ${tablero[5]} │
-├───┼───┼───┤
-│ ${tablero[6]} │ ${tablero[7]} │ ${tablero[8]} │
-╰───┴───┴───╯`;
-}
-
-// 🎮 Comando .ttt
 const handler = async (msg, { conn, args }) => {
   const chatId = msg.key.remoteJid;
-  const sender = (msg.key.participant || msg.key.remoteJid).replace(/[^0-9]/g, "");
-  const isGroup = chatId.endsWith("@g.us");
-
+  const senderId = msg.key.participant || msg.key.remoteJid;
+  const senderNum = senderId.replace(/[^0-9]/g, "");
+  const text = args.join(" ").trim();
   const ctx = msg.message?.extendedTextMessage?.contextInfo;
-  const citado = ctx?.participant;
+  const cited = ctx?.participant;
 
-  if (!isGroup) return conn.sendMessage(chatId, {
-    text: "⚠️ Este comando solo se puede usar en grupos."
-  }, { quoted: msg });
-
-  const nombre = args.join(" ").trim();
-  const enemigo = citado?.replace(/[^0-9]/g, "");
-
-  if (!enemigo) {
+  if (!chatId.endsWith("@g.us")) {
     return conn.sendMessage(chatId, {
-      text: "📍 Debes responder al mensaje del oponente que quieres retar."
+      text: "❌ Este comando solo puede usarse en grupos."
     }, { quoted: msg });
   }
 
-  if (enemigo === sender) {
+  if (!cited) {
+    return conn.sendMessage(chatId, {
+      text: "🎮 Responde al mensaje del jugador que quieres retar."
+    }, { quoted: msg });
+  }
+
+  const citadoNum = cited.replace(/[^0-9]/g, "");
+  if (senderNum === citadoNum) {
     return conn.sendMessage(chatId, {
       text: "🙃 No puedes jugar contra ti mismo."
     }, { quoted: msg });
   }
 
-  // Verificar si ya tiene una partida pendiente
-  if (Object.values(global.tttGames).some(g =>
-    g.jugadores.includes(sender) || g.jugadores.includes(enemigo))) {
+  const gameName = text || "sin_nombre";
+  const partidaId = `${chatId}_${gameName}`;
+
+  if (!global.tttGames) global.tttGames = {};
+
+  // Verificar que no haya una partida activa o pendiente con esos jugadores
+  const jugadorYaTiene = Object.values(global.tttGames).find(g =>
+    g.jugadores.includes(senderNum) && !g.finalizada
+  );
+  if (jugadorYaTiene) {
     return conn.sendMessage(chatId, {
-      text: "⚠️ Tú o el oponente ya tienen una partida pendiente."
+      text: "⏳ Ya tienes una partida pendiente o activa. Termínala antes de iniciar otra."
     }, { quoted: msg });
   }
 
-  const id = Date.now().toString();
-  global.tttGames[id] = {
-    id,
-    nombre: nombre || "sin nombre",
-    jugadores: [sender, enemigo],
+  global.tttGames[partidaId] = {
+    id: partidaId,
+    chatId,
+    nombre: gameName,
+    jugador: senderNum,
+    reto: citadoNum,
+    jugadores: [senderNum, citadoNum],
     tablero: ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
-    turno: sender,
     aceptada: false,
-    timeout: setTimeout(() => {
-      delete global.tttGames[id];
-    }, 5 * 60 * 1000)
+    turno: null,
+    finalizada: false,
+    tiempo: Date.now()
   };
 
-  const tablero = pintarTablero(global.tttGames[id].tablero);
-
   await conn.sendMessage(chatId, {
-    text: `🎮 *Partida 3 en raya creada*\n\n🧑‍💼 Retador: @${sender}\n👤 Retado: @${enemigo}\n📛 Nombre: *${global.tttGames[id].nombre}*\n\n🔄 Para aceptar escribe: *.gottt*\n\n${tablero}`,
-    mentions: [`${sender}@s.whatsapp.net`, `${enemigo}@s.whatsapp.net`]
+    text: `🎮 *Partida de 3 en Raya creada*\n\n👤 @${senderNum} ha retado a @${citadoNum} a una partida *${gameName}*\n\n📌 Usa *.gottt* para aceptar.\n⏳ Tienes 5 minutos.`,
+    mentions: [`${senderNum}@s.whatsapp.net`, `${citadoNum}@s.whatsapp.net`]
   }, { quoted: msg });
+
+  // Tiempo de espera de 5 minutos
+  setTimeout(() => {
+    const partida = global.tttGames[partidaId];
+    if (partida && !partida.aceptada) {
+      delete global.tttGames[partidaId];
+      conn.sendMessage(chatId, {
+        text: `⌛ La solicitud de partida *${gameName}* ha expirado por inactividad.`
+      });
+    }
+  }, 5 * 60 * 1000);
 };
 
 handler.command = ["ttt"];
