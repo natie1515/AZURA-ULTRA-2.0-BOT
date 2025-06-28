@@ -1,13 +1,23 @@
 const fs = require("fs");
 const path = require("path");
 
+function pintarTablero(t) {
+  return `
+🎮 *3 en Raya - Partida*  
+${t[0]} | ${t[1]} | ${t[2]}
+— + — + —
+${t[3]} | ${t[4]} | ${t[5]}
+— + — + —
+${t[6]} | ${t[7]} | ${t[8]}
+`.trim();
+}
+
 const handler = async (msg, { conn, args }) => {
   const chatId = msg.key.remoteJid;
   const senderId = msg.key.participant || msg.key.remoteJid;
-  const senderNum = senderId.replace(/[^0-9]/g, "");
-  const text = args.join(" ").trim();
+  const sender = senderId.replace(/[^0-9]/g, "");
   const ctx = msg.message?.extendedTextMessage?.contextInfo;
-  const cited = ctx?.participant;
+  const citado = ctx?.participant;
 
   if (!chatId.endsWith("@g.us")) {
     return conn.sendMessage(chatId, {
@@ -15,60 +25,53 @@ const handler = async (msg, { conn, args }) => {
     }, { quoted: msg });
   }
 
-  if (!cited) {
+  if (!citado) {
     return conn.sendMessage(chatId, {
-      text: "🎮 Responde al mensaje del jugador que quieres retar."
+      text: "⚠️ Debes *responder* al mensaje del usuario que quieres retar."
     }, { quoted: msg });
   }
 
-  const citadoNum = cited.replace(/[^0-9]/g, "");
-  if (senderNum === citadoNum) {
+  const oponente = citado.replace(/[^0-9]/g, "");
+  if (oponente === sender) {
     return conn.sendMessage(chatId, {
       text: "🙃 No puedes jugar contra ti mismo."
     }, { quoted: msg });
   }
 
-  const gameName = text || "sin_nombre";
-  const partidaId = `${chatId}_${gameName}`;
+  const nombrePartida = args.join(" ").trim() || "sin_nombre";
+  const id = `${chatId}_${nombrePartida}`;
 
   if (!global.tttGames) global.tttGames = {};
-
-  // Verificar que no haya una partida activa o pendiente con esos jugadores
-  const jugadorYaTiene = Object.values(global.tttGames).find(g =>
-    g.jugadores.includes(senderNum) && !g.finalizada
-  );
-  if (jugadorYaTiene) {
+  if (Object.values(global.tttGames).find(g =>
+    g.jugadores.includes(sender) || g.jugadores.includes(oponente))) {
     return conn.sendMessage(chatId, {
-      text: "⏳ Ya tienes una partida pendiente o activa. Termínala antes de iniciar otra."
+      text: "🚫 Tú o tu oponente ya tienen una partida activa o pendiente."
     }, { quoted: msg });
   }
 
-  global.tttGames[partidaId] = {
-    id: partidaId,
+  global.tttGames[id] = {
+    id,
+    nombre: nombrePartida,
     chatId,
-    nombre: gameName,
-    jugador: senderNum,
-    reto: citadoNum,
-    jugadores: [senderNum, citadoNum],
+    jugadores: [sender, oponente],
+    turno: sender,
     tablero: ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
-    aceptada: false,
-    turno: null,
+    aceptada: true,
     finalizada: false,
     tiempo: Date.now()
   };
 
   await conn.sendMessage(chatId, {
-    text: `🎮 *Partida de 3 en Raya creada*\n\n👤 @${senderNum} ha retado a @${citadoNum} a una partida *${gameName}*\n\n📌 Usa *.gottt* para aceptar.\n⏳ Tienes 5 minutos.`,
-    mentions: [`${senderNum}@s.whatsapp.net`, `${citadoNum}@s.whatsapp.net`]
+    text: `🎮 *Nueva partida iniciada: ${nombrePartida}*\n\n👤 @${sender} vs 👤 @${oponente}\n\n🔢 Turno de: @${sender}\n\n${pintarTablero(global.tttGames[id].tablero)}\n\n🎲 Envía un número del 1 al 9 para jugar.`,
+    mentions: [`${sender}@s.whatsapp.net`, `${oponente}@s.whatsapp.net`]
   }, { quoted: msg });
 
-  // Tiempo de espera de 5 minutos
   setTimeout(() => {
-    const partida = global.tttGames[partidaId];
-    if (partida && !partida.aceptada) {
-      delete global.tttGames[partidaId];
+    const g = global.tttGames?.[id];
+    if (g && !g.finalizada && Date.now() - g.tiempo >= 5 * 60 * 1000) {
+      delete global.tttGames[id];
       conn.sendMessage(chatId, {
-        text: `⌛ La solicitud de partida *${gameName}* ha expirado por inactividad.`
+        text: `⌛ La partida *${nombrePartida}* ha sido cancelada por inactividad.`
       });
     }
   }, 5 * 60 * 1000);
