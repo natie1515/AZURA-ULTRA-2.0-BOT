@@ -9,7 +9,7 @@ const { promisify } = require("util");
 const { pipeline }  = require("stream");
 const streamPipe    = promisify(pipeline);
 
-const pending = {};   // { msgId: { chatId, video, userMsg, done:{audio,video} } }
+const pending = {};   // { msgId : { chatId, video, previewMsg, done:{audio,video} } }
 
 /* ────── COMANDO ────── */
 module.exports = async (msg, { conn, text }) => {
@@ -17,8 +17,8 @@ module.exports = async (msg, { conn, text }) => {
   const subID = (conn.user.id || "").split(":")[0] + "@s.whatsapp.net";
   const pref  = (() => {
     try {
-      const p = JSON.parse(fs.readFileSync("prefixes.json", "utf8"));
-      return p[subID] || ".";
+      const pf = JSON.parse(fs.readFileSync("prefixes.json","utf8"));
+      return pf[subID] || ".";
     } catch { return "."; }
   })();
 
@@ -28,7 +28,7 @@ module.exports = async (msg, { conn, text }) => {
       { quoted: msg });
   }
 
-  await conn.sendMessage(msg.key.remoteJid, { react:{ text:"⏳", key:msg.key } });
+  await conn.sendMessage(msg.key.remoteJid,{ react:{ text:"⏳", key:msg.key } });
 
   /* Búsqueda YT */
   const res   = await yts(text);
@@ -48,26 +48,27 @@ module.exports = async (msg, { conn, text }) => {
 
 👍 = Audio MP3   |   ❤️ = Video MP4`;
 
+  /* mensaje de previsualización */
   const preview = await conn.sendMessage(msg.key.remoteJid,{
     image:{ url: video.thumbnail },
     caption
   },{ quoted:msg });
 
-  /* Guarda contexto */
+  /* — guarda contexto — */
   pending[preview.key.id] = {
-    chatId  : msg.key.remoteJid,
+    chatId    : msg.key.remoteJid,
     video,
-    userMsg : msg,                 // mensaje completo (no solo key)
-    done    : { audio:false, video:false }
+    previewMsg: preview,        // mensaje que recibirá la reacción
+    done      : { audio:false, video:false }
   };
 
   await conn.sendMessage(msg.key.remoteJid,{ react:{ text:"✅", key:msg.key } });
 
-  /* Listener de reacciones (solo una vez) */
+  /* Listener (solo se instala una vez) */
   if (!conn._playproListener) {
     conn._playproListener = true;
-    conn.ev.on("messages.upsert", async ev => {
-      for (const m of ev.messages) {
+    conn.ev.on("messages.upsert", async ({ messages }) => {
+      for (const m of messages) {
         if (!m.message?.reactionMessage) continue;
 
         const { key, text:emoji } = m.message.reactionMessage;
@@ -78,41 +79,40 @@ module.exports = async (msg, { conn, text }) => {
           if (emoji === "👍" && !job.done.audio) {
             job.done.audio = true;
             await conn.sendMessage(job.chatId,
-              { text:"⏳ Descargando audio…", quoted: job.userMsg });
+              { text:"⏳ Descargando audio…", quoted: job.previewMsg });
             await sendAudio(conn, job);
           } else if (emoji === "❤️" && !job.done.video) {
             job.done.video = true;
             await conn.sendMessage(job.chatId,
-              { text:"⏳ Descargando vídeo…", quoted: job.userMsg });
+              { text:"⏳ Descargando vídeo…", quoted: job.previewMsg });
             await sendVideo(conn, job);
           }
           if (job.done.audio && job.done.video) delete pending[key.id];
         } catch (e) {
           await conn.sendMessage(job.chatId,
-            { text:`❌ Error: ${e.message}`, quoted: job.userMsg });
+            { text:`❌ Error: ${e.message}`, quoted: job.previewMsg });
         }
       }
     });
   }
 };
 
-/* ─── Descarga vídeo ─── */
-async function sendVideo(conn,{ chatId, video, userMsg }) {
+/* ─────────── Descarga VIDEO ─────────── */
+async function sendVideo(conn,{ chatId, video, previewMsg }) {
   const qList = ["720p","480p","360p"];
   let url=null;
   for (const q of qList) {
     try {
       const api = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(video.url)}&type=video&quality=${q}&apikey=russellxz`;
       const r   = await axios.get(api);
-      if (r.data?.status && r.data.data?.url) { url = r.data.data.url; break; }
+      if (r.data?.status && r.data.data?.url){ url = r.data.data.url; break; }
     } catch{}
   }
-  if (!url) throw new Error("No se pudo obtener el video");
+  if (!url) throw new Error("Fuente de vídeo no disponible");
 
   const tmp  = path.join(__dirname,"../tmp");
   if (!fs.existsSync(tmp)) fs.mkdirSync(tmp);
-  const file = path.join(tmp, Date.now()+"_vid.mp4");
-
+  const file = path.join(tmp, Date.now()+"_video.mp4");
   await streamPipe((await axios.get(url,{responseType:"stream"})).data,
                    fs.createWriteStream(file));
 
@@ -120,22 +120,21 @@ async function sendVideo(conn,{ chatId, video, userMsg }) {
     video: fs.readFileSync(file),
     mimetype:"video/mp4",
     fileName: video.title+".mp4",
-    caption: "🎬 Video listo."
-  },{ quoted:userMsg });
+    caption:"🎬 Video listo."
+  },{ quoted: previewMsg });
   fs.unlinkSync(file);
 }
 
-/* ─── Descarga audio ─── */
-async function sendAudio(conn,{ chatId, video, userMsg }) {
+/* ─────────── Descarga AUDIO ─────────── */
+async function sendAudio(conn,{ chatId, video, previewMsg }) {
   const api = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(video.url)}&type=audio&quality=128kbps&apikey=russellxz`;
   const r   = await axios.get(api);
-  if (!r.data?.status || !r.data.data?.url) throw new Error("No se pudo obtener el audio");
+  if (!r.data?.status || !r.data.data?.url) throw new Error("Fuente de audio no disponible");
 
   const tmp   = path.join(__dirname,"../tmp");
   if (!fs.existsSync(tmp)) fs.mkdirSync(tmp);
   const raw   = path.join(tmp, Date.now()+"_raw.m4a");
   const final = path.join(tmp, Date.now()+"_audio.mp3");
-
   await streamPipe((await axios.get(r.data.data.url,{responseType:"stream"})).data,
                    fs.createWriteStream(raw));
 
@@ -148,10 +147,10 @@ async function sendAudio(conn,{ chatId, video, userMsg }) {
     audio: fs.readFileSync(final),
     mimetype:"audio/mpeg",
     fileName: video.title+".mp3"
-  },{ quoted:userMsg });
+  },{ quoted: previewMsg });
 
   fs.unlinkSync(raw); fs.unlinkSync(final);
 }
 
-/* ─── Registro ─── */
+/* ───────── Registro ───────── */
 module.exports.command = ["playpro"];
