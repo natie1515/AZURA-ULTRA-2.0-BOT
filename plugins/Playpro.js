@@ -1,4 +1,4 @@
-/*  plugins2/playpro.js  —  descarga audio (👍) o vídeo (❤️) con reacción */
+/*  plugins2/playpro.js  —  audio (👍) o vídeo (❤️) con feedback */
 
 const axios  = require("axios");
 const yts    = require("yt-search");
@@ -9,17 +9,14 @@ const { promisify } = require("util");
 const { pipeline }  = require("stream");
 const streamPipe    = promisify(pipeline);
 
-const pending = {};   // { msgID : { chatId, video } }
+const pending = {};   // { msgId: { chatId, video, userKey, done:{audio,video} } }
 
-/* ────────────────  COMANDO  ─────────────────────────── */
+/* ────── COMANDO ────── */
 module.exports = async (msg, { conn, text }) => {
-  /* prefijo personalizado */
-  const subID = (conn.user?.id || "").split(":")[0] + "@s.whatsapp.net";
+  const subID = (conn.user.id || "").split(":")[0] + "@s.whatsapp.net";
   const pref  = (() => {
-    try {
-      const pf = JSON.parse(fs.readFileSync("prefixes.json", "utf8"));
-      return pf[subID] || ".";
-    } catch { return "."; }
+    try { const p = JSON.parse(fs.readFileSync("prefixes.json","utf8")); return p[subID]||"."; }
+    catch { return "."; }
   })();
 
   if (!text) {
@@ -28,17 +25,18 @@ module.exports = async (msg, { conn, text }) => {
       { quoted: msg });
   }
 
-  await conn.sendMessage(msg.key.remoteJid, { react:{ text:"⏳", key:msg.key } });
+  await conn.sendMessage(msg.key.remoteJid,{ react:{ text:"⏳", key:msg.key } });
 
-  /* búsqueda en YouTube */
-  const list = await yts(text);
-  const video = list.videos[0];
-  if (!video) return conn.sendMessage(msg.key.remoteJid,
-      { text:"❌ Sin resultados." }, { quoted:msg });
+  /* Búsqueda YT */
+  const res   = await yts(text);
+  const video = res.videos[0];
+  if (!video)
+    return conn.sendMessage(msg.key.remoteJid,
+      { text:"❌ Sin resultados." },{ quoted:msg });
 
   const caption =
 `╔═══════════════╗
-✦ 𝗔𝘇𝘂𝗿𝗮 𝗨𝗹𝘁𝗿𝗮 2.0 𝗦𝘂𝗯𝗯𝗼𝘁 ✦
+✦ 𝗔𝘇𝘂𝗿𝗮 𝗨𝗹𝘁𝗿𝗮 2.0 ✦
 ╚═══════════════╝
 
 🎼 *${video.title}*
@@ -52,54 +50,69 @@ module.exports = async (msg, { conn, text }) => {
     caption
   },{ quoted:msg });
 
-  pending[preview.key.id] = { chatId: msg.key.remoteJid, video };
+  /* guarda contexto */
+  pending[preview.key.id] = {
+    chatId   : msg.key.remoteJid,
+    video,
+    userKey  : msg.key,         // para citar
+    done     : { audio:false, video:false }
+  };
 
   await conn.sendMessage(msg.key.remoteJid,{ react:{ text:"✅", key:msg.key } });
 
-  /* asegura un único listener de reacciones */
+  /* instala listener una sola vez */
   if (!conn._playproListener) {
     conn._playproListener = true;
-
     conn.ev.on("messages.upsert", async ev => {
       for (const m of ev.messages) {
         if (!m.message?.reactionMessage) continue;
 
-        const reacted  = m.message.reactionMessage;
-        const job      = pending[reacted.key.id];
-        if (!job) continue;               // no es nuestro
-
-        const emoji = reacted.text;
-        delete pending[reacted.key.id];   // evita duplicados
+        const { key, text:emoji } = m.message.reactionMessage;
+        const job = pending[key.id];
+        if (!job) continue;
 
         try {
-          if (emoji === "👍")      await sendAudio(conn, job);
-          else if (emoji === "❤️") await sendVideo(conn, job);
-        } catch (e) {
+          if (emoji === "👍" && !job.done.audio) {
+            job.done.audio = true;
+            await conn.sendMessage(job.chatId,
+              { text:"⏳ Descargando audio…", quoted: job.userKey });
+            await sendAudio(conn, job);
+          }
+          else if (emoji === "❤️" && !job.done.video) {
+            job.done.video = true;
+            await conn.sendMessage(job.chatId,
+              { text:"⏳ Descargando vídeo…", quoted: job.userKey });
+            await sendVideo(conn, job);
+          }
+          /* elimina registro cuando ambos completados */
+          if (job.done.audio && job.done.video) delete pending[key.id];
+        } catch(e) {
           await conn.sendMessage(job.chatId,
-            { text:`❌ Error: ${e.message}` });
+            { text:`❌ Error: ${e.message}`, quoted: job.userKey });
         }
       }
     });
   }
 };
 
-/* ───────────  DESCARGA DE VÍDEO  ─────────── */
-async function sendVideo(conn,{ chatId, video }) {
-  const qualities = ["720p","480p","360p"];
-  let url = null;
-  for (const q of qualities) {
+/* ─── Descarga vídeo ─── */
+async function sendVideo(conn,{ chatId, video, userKey }) {
+  const qList = ["720p","480p","360p"];
+  let url=null;
+  for (const q of qList) {
     try {
       const api = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(video.url)}&type=video&quality=${q}&apikey=russellxz`;
       const r   = await axios.get(api);
-      if (r.data?.status && r.data.data?.url) { url = r.data.data.url; break; }
-    } catch {}
+      if (r.data?.status && r.data.data?.url){ url = r.data.data.url; break; }
+    } catch{}
   }
-  if (!url) throw new Error("No se pudo obtener el video");
+  if (!url) throw new Error("Fuente de vídeo no disponible");
 
   const tmp  = path.join(__dirname,"../tmp");
   if (!fs.existsSync(tmp)) fs.mkdirSync(tmp);
-  const file = path.join(tmp, Date.now()+"_video.mp4");
-  await streamPipe((await axios.get(url,{ responseType:"stream" })).data,
+  const file = path.join(tmp,Date.now()+"_vid.mp4");
+
+  await streamPipe((await axios.get(url,{responseType:"stream"})).data,
                    fs.createWriteStream(file));
 
   await conn.sendMessage(chatId,{
@@ -107,21 +120,22 @@ async function sendVideo(conn,{ chatId, video }) {
     mimetype:"video/mp4",
     fileName: video.title+".mp4",
     caption: "🎬 Video listo."
-  });
+  },{ quoted:userKey });
   fs.unlinkSync(file);
 }
 
-/* ───────────  DESCARGA DE AUDIO  ─────────── */
-async function sendAudio(conn,{ chatId, video }) {
+/* ─── Descarga audio ─── */
+async function sendAudio(conn,{ chatId, video, userKey }) {
   const api = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(video.url)}&type=audio&quality=128kbps&apikey=russellxz`;
   const r   = await axios.get(api);
-  if (!r.data?.status || !r.data.data?.url) throw new Error("No se pudo obtener el audio");
+  if (!r.data?.status || !r.data.data?.url) throw new Error("Fuente de audio no disponible");
 
   const tmp   = path.join(__dirname,"../tmp");
   if (!fs.existsSync(tmp)) fs.mkdirSync(tmp);
-  const raw   = path.join(tmp, Date.now()+"_raw.m4a");
-  const final = path.join(tmp, Date.now()+"_final.mp3");
-  await streamPipe((await axios.get(r.data.data.url,{ responseType:"stream" })).data,
+  const raw   = path.join(tmp,Date.now()+"_raw.m4a");
+  const final = path.join(tmp,Date.now()+"_audio.mp3");
+
+  await streamPipe((await axios.get(r.data.data.url,{responseType:"stream"})).data,
                    fs.createWriteStream(raw));
 
   await new Promise((ok,err)=>{
@@ -133,9 +147,10 @@ async function sendAudio(conn,{ chatId, video }) {
     audio: fs.readFileSync(final),
     mimetype:"audio/mpeg",
     fileName: video.title+".mp3"
-  });
+  },{ quoted:userKey });
+
   fs.unlinkSync(raw); fs.unlinkSync(final);
 }
 
-/* ───────────────  REGISTRO  ─────────────── */
+/* ─── Registro ─── */
 module.exports.command = ["playpro"];
