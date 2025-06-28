@@ -50,38 +50,36 @@ async function getPrompt() {
 }
 
 //tres en ralla
-function pintarTablero(tab) {
+function pintarTablero(tablero) {
   return `
-╭───────╮
-│ ${tab[0]} │ ${tab[1]} │ ${tab[2]} │
-│ ${tab[3]} │ ${tab[4]} │ ${tab[5]} │
-│ ${tab[6]} │ ${tab[7]} │ ${tab[8]} │
-╰───────╯`;
+${tablero.slice(0, 3).join("")}
+${tablero.slice(3, 6).join("")}
+${tablero.slice(6).join("")}
+`.trim();
 }
 
-function checkWin(t) {
-  const wins = [
+function checkWin(tablero) {
+  const lines = [
     [0,1,2],[3,4,5],[6,7,8],
     [0,3,6],[1,4,7],[2,5,8],
     [0,4,8],[2,4,6]
   ];
-  return wins.some(([a,b,c]) => t[a] === t[b] && t[b] === t[c]);
+  return lines.some(([a,b,c]) =>
+    tablero[a] !== "⬜" && tablero[a] === tablero[b] && tablero[b] === tablero[c]
+  );
 }
 
-function registrarResultado(winner, loser) {
-  const fs = require("fs");
-  const path = require("path");
-  const file = path.resolve("ttt.json");
-  let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
-  if (!db[winner]) db[winner] = { jugadas: 0, ganadas: 0, perdidas: 0 };
-  if (!db[loser])  db[loser]  = { jugadas: 0, ganadas: 0, perdidas: 0 };
+function registrarResultado(ganador, perdedor) {
+  if (!global.tttStats[ganador]) global.tttStats[ganador] = { jugadas: 0, ganadas: 0, perdidas: 0 };
+  if (!global.tttStats[perdedor]) global.tttStats[perdedor] = { jugadas: 0, ganadas: 0, perdidas: 0 };
 
-  db[winner].jugadas++;
-  db[winner].ganadas++;
-  db[loser].jugadas++;
-  db[loser].perdidas++;
+  global.tttStats[ganador].jugadas++;
+  global.tttStats[ganador].ganadas++;
 
-  fs.writeFileSync(file, JSON.stringify(db, null, 2));
+  global.tttStats[perdedor].jugadas++;
+  global.tttStats[perdedor].perdidas++;
+
+  fs.writeFileSync("ttt.json", JSON.stringify(global.tttStats, null, 2));
 }
 //fin 3 en ralla  
 function cleanResponse(text) {
