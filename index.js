@@ -48,68 +48,7 @@ async function getPrompt() {
     return 'Eres un asistente inteligente';
   }
 }
-global.tttGames = {};
-//tres en ralla
-function registrarResultado(ganador, perdedor, empate = false) {
-  if (!global.tttStats) global.tttStats = {};
 
-  for (let id of [ganador, perdedor]) {
-    if (!global.tttStats[id]) {
-      global.tttStats[id] = {
-        jugadas: 0,
-        ganadas: 0,
-        perdidas: 0,
-        empates: 0
-      };
-    }
-    global.tttStats[id].jugadas += 1;
-  }
-
-  if (empate) {
-    global.tttStats[ganador].empates += 1;
-    global.tttStats[perdedor].empates += 1;
-  } else {
-    global.tttStats[ganador].ganadas += 1;
-    global.tttStats[perdedor].perdidas += 1;
-  }
-
-  // Guardar en ttt.json
-  const fs = require("fs");
-  fs.writeFileSync("ttt.json", JSON.stringify(global.tttStats, null, 2));
-}
-//importa   
-function pintarTablero(tablero) {
-  return `
-${tablero.slice(0, 3).join("")}
-${tablero.slice(3, 6).join("")}
-${tablero.slice(6).join("")}
-`.trim();
-}
-
-function checkWin(tablero) {
-  const lines = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
-  return lines.some(([a,b,c]) =>
-    tablero[a] !== "⬜" && tablero[a] === tablero[b] && tablero[b] === tablero[c]
-  );
-}
-
-function registrarResultado(ganador, perdedor) {
-  if (!global.tttStats[ganador]) global.tttStats[ganador] = { jugadas: 0, ganadas: 0, perdidas: 0 };
-  if (!global.tttStats[perdedor]) global.tttStats[perdedor] = { jugadas: 0, ganadas: 0, perdidas: 0 };
-
-  global.tttStats[ganador].jugadas++;
-  global.tttStats[ganador].ganadas++;
-
-  global.tttStats[perdedor].jugadas++;
-  global.tttStats[perdedor].perdidas++;
-
-  fs.writeFileSync("ttt.json", JSON.stringify(global.tttStats, null, 2));
-}
-//fin 3 en ralla  
 function cleanResponse(text) {
   if (!text) return '';
   return text
@@ -697,57 +636,6 @@ if (isGroup && activos.antis?.[chatId] && !fromMe && stickerMsg) {
   }
 }
 // === FIN LÓGICA ANTIS STICKERS ===
-
-// === INICIO LÓGICA DE JUGADAS TTT ===
-if (chatId?.endsWith("@g.us") && /^[1-9]$/.test(messageText)) {
-  const partida = Object.values(global.tttGames || {}).find(g =>
-    g.jugadores.includes(sender)
-  );
-
-  if (partida && partida.turno === sender) {
-    const idx = parseInt(messageText) - 1;
-    if (["❌", "⭕"].includes(partida.tablero[idx])) {
-      await sock.sendMessage(chatId, {
-        text: "⚠️ Esa casilla ya fue jugada.",
-        quoted: msg
-      });
-    } else {
-      const simbolo = partida.jugadores[0] === sender ? "❌" : "⭕";
-      partida.tablero[idx] = simbolo;
-
-      const tablero = pintarTablero(partida.tablero);
-      const ganador = checkWin(partida.tablero);
-      const empate = partida.tablero.every(c => ["❌", "⭕"].includes(c));
-      const siguiente = partida.jugadores.find(j => j !== sender);
-
-      if (ganador) {
-        registrarResultado(sender, siguiente);
-        await sock.sendMessage(chatId, {
-          text: `🏆 ¡@${sender} ha ganado la partida *${partida.nombre}*!\n\n${tablero}`,
-          mentions: partida.jugadores.map(j => `${j}@s.whatsapp.net`)
-        });
-        clearTimeout(partida.timeout);
-        delete global.tttGames[partida.id];
-      } else if (empate) {
-        registrarResultado(sender, siguiente); // Puedes adaptar si quieres contar empates por separado
-        await sock.sendMessage(chatId, {
-          text: `🤝 La partida *${partida.nombre}* terminó en *empate*.\n\n${tablero}`,
-          mentions: partida.jugadores.map(j => `${j}@s.whatsapp.net`)
-        });
-        clearTimeout(partida.timeout);
-        delete global.tttGames[partida.id];
-      } else {
-        partida.turno = siguiente;
-        await sock.sendMessage(chatId, {
-          text: `🎯 Turno de @${siguiente}\n\n${tablero}`,
-          mentions: [`${siguiente}@s.whatsapp.net`]
-        });
-      }
-    }
-  }
-}
-// === FIN LÓGICA DE JUGADAS TTT ===
-    
 // === INICIO GUARDADO ANTIDELETE ===
 try {
   const activos = fs.existsSync('./activos.json')
