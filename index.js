@@ -48,7 +48,7 @@ async function getPrompt() {
     return 'Eres un asistente inteligente';
   }
 }
-
+global.tttGames = {};
 //tres en ralla
 function pintarTablero(tablero) {
   return `
