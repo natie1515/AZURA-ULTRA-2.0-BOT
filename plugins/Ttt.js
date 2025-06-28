@@ -24,9 +24,7 @@ function checkWin(board) {
   ];
   for (let line of lines) {
     const [a,b,c] = line;
-    if (board[a] === board[b] && board[b] === board[c]) {
-      return true;
-    }
+    if (board[a] === board[b] && board[b] === board[c]) return true;
   }
   return false;
 }
