@@ -30,7 +30,17 @@ function checkWin(board) {
 }
 
 function actualizarStats(ganador, perdedor, empate = false) {
-  let data = fs.existsSync(TTT_DATA) ? JSON.parse(fs.readFileSync(TTT_DATA)) : { usuarios: {} };
+  let data;
+  try {
+    data = fs.existsSync(TTT_DATA)
+      ? JSON.parse(fs.readFileSync(TTT_DATA, "utf8"))
+      : { usuarios: {} };
+  } catch {
+    data = { usuarios: {} };
+  }
+
+  if (!data.usuarios) data.usuarios = {};
+
   for (let id of [ganador, perdedor]) {
     if (!data.usuarios[id]) {
       data.usuarios[id] = { jugadas: 0, ganadas: 0, perdidas: 0, empates: 0 };
