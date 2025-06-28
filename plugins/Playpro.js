@@ -71,7 +71,7 @@ module.exports = async (msg, { conn, text }) => {
 ┣ 🎥 ${pref}play6 ${text}
 ┗ ⚠️ ${pref}ff
 ═════════════════════
-𖥔 Azura Ultra 𖥔
+   𖥔 Azura Ultra 2.0 Bot 𖥔
 ═════════════════════`.trim();
 
   // envía preview
