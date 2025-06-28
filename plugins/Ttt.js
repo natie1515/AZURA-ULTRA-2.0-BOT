@@ -1,56 +1,64 @@
 const fs = require("fs");
 const path = require("path");
-const tttPath = path.resolve("ttt.json");
 
-module.exports = async (msg, { conn, args }) => {
+const TTT_PATH = path.resolve("ttt.json");
+if (!global.tttGames) global.tttGames = {};
+
+const handler = async (msg, { conn, args }) => {
   const chatId = msg.key.remoteJid;
   const sender = (msg.key.participant || msg.key.remoteJid).replace(/[^0-9]/g, "");
+  const isGroup = chatId.endsWith("@g.us");
 
   const ctx = msg.message?.extendedTextMessage?.contextInfo;
-  const citado = ctx?.participant?.replace(/[^0-9]/g, "");
-  const mencionado = citado || (args[0]?.includes("@") ? args[0].replace(/[^0-9]/g, "") : null);
+  const citado = ctx?.participant;
 
-  if (!mencionado || mencionado === sender) {
-    return conn.sendMessage(chatId, {
-      text: "🎮 Debes *citar o mencionar* a alguien para retarlo."
-    }, { quoted: msg });
-  }
-
-  // Verificar si ya hay partida pendiente
-  const yaHay = Object.values(global.tttGames).find(g =>
-    g.jugadores.includes(sender) && !g.aceptada
-  );
-
-  if (yaHay) {
-    return conn.sendMessage(chatId, {
-      text: `⏳ Ya tienes una partida pendiente contra @${yaHay.jugadores.find(j => j !== sender)}.`,
-      mentions: yaHay.jugadores.map(j => `${j}@s.whatsapp.net`)
-    }, { quoted: msg });
-  }
-
-  const id = Date.now();
-  const partida = {
-    id,
-    nombre: args[1] ? args.slice(1).join(" ") : "sin nombre",
-    jugadores: [sender, mencionado],
-    aceptada: false,
-    turno: null,
-    tablero: Array(9).fill("⬜"),
-    timestamp: Date.now()
-  };
-
-  global.tttGames[id] = partida;
-
-  await conn.sendMessage(chatId, {
-    text: `🎮 *@${mencionado}* has sido retado a *3 en raya* por *@${sender}*\n\n👥 Partida: *${partida.nombre}*\n\n👉 Usa *.gottt* para aceptar.`,
-    mentions: partida.jugadores.map(j => `${j}@s.whatsapp.net`)
+  if (!isGroup) return conn.sendMessage(chatId, {
+    text: "⚠️ Este comando solo se puede usar en grupos."
   }, { quoted: msg });
 
-  // Borrar si no acepta en 5 minutos
-  setTimeout(() => {
-    const sigue = global.tttGames[id];
-    if (sigue && !sigue.aceptada) delete global.tttGames[id];
-  }, 5 * 60 * 1000);
+  const nombre = args.join(" ").trim();
+  const enemigo = citado?.replace(/[^0-9]/g, "");
+
+  if (!enemigo) {
+    return conn.sendMessage(chatId, {
+      text: "📍 Debes responder al mensaje del oponente que quieres retar."
+    }, { quoted: msg });
+  }
+
+  if (enemigo === sender) {
+    return conn.sendMessage(chatId, {
+      text: "🙃 No puedes jugar contra ti mismo."
+    }, { quoted: msg });
+  }
+
+  // Verificar si ya tiene una partida pendiente
+  if (Object.values(global.tttGames).some(g =>
+    g.jugadores.includes(sender) || g.jugadores.includes(enemigo))) {
+    return conn.sendMessage(chatId, {
+      text: "⚠️ Tú o el oponente ya tienen una partida pendiente."
+    }, { quoted: msg });
+  }
+
+  const id = Date.now().toString();
+  global.tttGames[id] = {
+    id,
+    nombre: nombre || "sin nombre",
+    jugadores: [sender, enemigo],
+    tablero: ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
+    turno: sender,
+    aceptada: false,
+    timeout: setTimeout(() => {
+      delete global.tttGames[id];
+    }, 5 * 60 * 1000)
+  };
+
+  const tablero = pintarTablero(global.tttGames[id].tablero);
+
+  await conn.sendMessage(chatId, {
+    text: `🎮 *Partida 3 en raya creada*\n\n🧑‍💼 Retador: @${sender}\n👤 Retado: @${enemigo}\n📛 Nombre: *${global.tttGames[id].nombre}*\n\n🔄 Para aceptar escribe: *.gottt*\n\n${tablero}`,
+    mentions: [`${sender}@s.whatsapp.net`, `${enemigo}@s.whatsapp.net`]
+  }, { quoted: msg });
 };
 
-module.exports.command = ["ttt"];
+handler.command = ["ttt"];
+module.exports = handler;
