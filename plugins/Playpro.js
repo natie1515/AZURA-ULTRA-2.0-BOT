@@ -60,7 +60,7 @@ module.exports = async (msg, { conn, text }) => {
 ├ 👤 Autor: ${author}
 └ 🔗 Link: ${videoUrl}
 ╰───────────────╯
-📥 Opciones de Descarga:
+📥 Opciones de Descarga reacione o responda el mensaje del bot🎮:
 ┣ 👍 Audio MP3     (1 / audio)
 ┣ ❤️ Video MP4     (2 / video)
 ┣ 📄 Audio Doc     (4 / audiodoc)
