@@ -547,7 +547,12 @@ sock.ev.on("messages.upsert", async (messageUpsert) => {
     const fromMe = msg.key.fromMe || sender === botNumber;
     let messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
     let messageType = Object.keys(msg.message || {})[0];
+//prueba
+    const chatId = m.key.remoteJid;
+const sender = (m.key.participant || m.key.remoteJid).replace(/[^0-9]/g, "");
+//ok
 
+    
     const activos = fs.existsSync("./activos.json") ? JSON.parse(fs.readFileSync("./activos.json")) : {};
     const lista = fs.existsSync("./lista.json") ? JSON.parse(fs.readFileSync("./lista.json")) : [];
     const isAllowedUser = (num) => lista.includes(num);
