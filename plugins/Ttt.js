@@ -4,6 +4,19 @@ const path = require("path");
 const TTT_PATH = path.resolve("ttt.json");
 if (!global.tttGames) global.tttGames = {};
 
+// 🧩 Función para renderizar el tablero
+function pintarTablero(tablero) {
+  return `
+╭───┬───┬───╮
+│ ${tablero[0]} │ ${tablero[1]} │ ${tablero[2]} │
+├───┼───┼───┤
+│ ${tablero[3]} │ ${tablero[4]} │ ${tablero[5]} │
+├───┼───┼───┤
+│ ${tablero[6]} │ ${tablero[7]} │ ${tablero[8]} │
+╰───┴───┴───╯`;
+}
+
+// 🎮 Comando .ttt
 const handler = async (msg, { conn, args }) => {
   const chatId = msg.key.remoteJid;
   const sender = (msg.key.participant || msg.key.remoteJid).replace(/[^0-9]/g, "");
