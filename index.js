@@ -50,39 +50,7 @@ async function getPrompt() {
 }
 
 //tres en ralla
-function pintarTablero(tab) {
-  return `
-╭───────╮
-│ ${tab[0]} │ ${tab[1]} │ ${tab[2]} │
-│ ${tab[3]} │ ${tab[4]} │ ${tab[5]} │
-│ ${tab[6]} │ ${tab[7]} │ ${tab[8]} │
-╰───────╯`;
-}
 
-function checkWin(t) {
-  const wins = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
-  return wins.some(([a,b,c]) => t[a] === t[b] && t[b] === t[c]);
-}
-
-function registrarResultado(winner, loser) {
-  const fs = require("fs");
-  const path = require("path");
-  const file = path.resolve("ttt.json");
-  let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
-  if (!db[winner]) db[winner] = { jugadas: 0, ganadas: 0, perdidas: 0 };
-  if (!db[loser])  db[loser]  = { jugadas: 0, ganadas: 0, perdidas: 0 };
-
-  db[winner].jugadas++;
-  db[winner].ganadas++;
-  db[loser].jugadas++;
-  db[loser].perdidas++;
-
-  fs.writeFileSync(file, JSON.stringify(db, null, 2));
-}
 //fin 3 en ralla  
 function cleanResponse(text) {
   if (!text) return '';
