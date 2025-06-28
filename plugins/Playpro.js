@@ -1,4 +1,4 @@
-/*  plugins2/playpro.js  —  audio (👍) o vídeo (❤️) con feedback */
+/*  plugins2/playpro.js  —  descarga audio (👍) o vídeo (❤️) con reacción */
 
 const axios  = require("axios");
 const yts    = require("yt-search");
@@ -9,14 +9,17 @@ const { promisify } = require("util");
 const { pipeline }  = require("stream");
 const streamPipe    = promisify(pipeline);
 
-const pending = {};   // { msgId: { chatId, video, userKey, done:{audio,video} } }
+const pending = {};   // { msgId: { chatId, video, userMsg, done:{audio,video} } }
 
 /* ────── COMANDO ────── */
 module.exports = async (msg, { conn, text }) => {
+  /* prefijo personalizado */
   const subID = (conn.user.id || "").split(":")[0] + "@s.whatsapp.net";
   const pref  = (() => {
-    try { const p = JSON.parse(fs.readFileSync("prefixes.json","utf8")); return p[subID]||"."; }
-    catch { return "."; }
+    try {
+      const p = JSON.parse(fs.readFileSync("prefixes.json", "utf8"));
+      return p[subID] || ".";
+    } catch { return "."; }
   })();
 
   if (!text) {
@@ -25,14 +28,14 @@ module.exports = async (msg, { conn, text }) => {
       { quoted: msg });
   }
 
-  await conn.sendMessage(msg.key.remoteJid,{ react:{ text:"⏳", key:msg.key } });
+  await conn.sendMessage(msg.key.remoteJid, { react:{ text:"⏳", key:msg.key } });
 
   /* Búsqueda YT */
   const res   = await yts(text);
   const video = res.videos[0];
   if (!video)
     return conn.sendMessage(msg.key.remoteJid,
-      { text:"❌ Sin resultados." },{ quoted:msg });
+      { text:"❌ Sin resultados." }, { quoted:msg });
 
   const caption =
 `╔═══════════════╗
@@ -50,17 +53,17 @@ module.exports = async (msg, { conn, text }) => {
     caption
   },{ quoted:msg });
 
-  /* guarda contexto */
+  /* Guarda contexto */
   pending[preview.key.id] = {
-    chatId   : msg.key.remoteJid,
+    chatId  : msg.key.remoteJid,
     video,
-    userKey  : msg.key,         // para citar
-    done     : { audio:false, video:false }
+    userMsg : msg,                 // mensaje completo (no solo key)
+    done    : { audio:false, video:false }
   };
 
   await conn.sendMessage(msg.key.remoteJid,{ react:{ text:"✅", key:msg.key } });
 
-  /* instala listener una sola vez */
+  /* Listener de reacciones (solo una vez) */
   if (!conn._playproListener) {
     conn._playproListener = true;
     conn.ev.on("messages.upsert", async ev => {
@@ -75,20 +78,18 @@ module.exports = async (msg, { conn, text }) => {
           if (emoji === "👍" && !job.done.audio) {
             job.done.audio = true;
             await conn.sendMessage(job.chatId,
-              { text:"⏳ Descargando audio…", quoted: job.userKey });
+              { text:"⏳ Descargando audio…", quoted: job.userMsg });
             await sendAudio(conn, job);
-          }
-          else if (emoji === "❤️" && !job.done.video) {
+          } else if (emoji === "❤️" && !job.done.video) {
             job.done.video = true;
             await conn.sendMessage(job.chatId,
-              { text:"⏳ Descargando vídeo…", quoted: job.userKey });
+              { text:"⏳ Descargando vídeo…", quoted: job.userMsg });
             await sendVideo(conn, job);
           }
-          /* elimina registro cuando ambos completados */
           if (job.done.audio && job.done.video) delete pending[key.id];
-        } catch(e) {
+        } catch (e) {
           await conn.sendMessage(job.chatId,
-            { text:`❌ Error: ${e.message}`, quoted: job.userKey });
+            { text:`❌ Error: ${e.message}`, quoted: job.userMsg });
         }
       }
     });
@@ -96,21 +97,21 @@ module.exports = async (msg, { conn, text }) => {
 };
 
 /* ─── Descarga vídeo ─── */
-async function sendVideo(conn,{ chatId, video, userKey }) {
+async function sendVideo(conn,{ chatId, video, userMsg }) {
   const qList = ["720p","480p","360p"];
   let url=null;
   for (const q of qList) {
     try {
       const api = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(video.url)}&type=video&quality=${q}&apikey=russellxz`;
       const r   = await axios.get(api);
-      if (r.data?.status && r.data.data?.url){ url = r.data.data.url; break; }
+      if (r.data?.status && r.data.data?.url) { url = r.data.data.url; break; }
     } catch{}
   }
-  if (!url) throw new Error("Fuente de vídeo no disponible");
+  if (!url) throw new Error("No se pudo obtener el video");
 
   const tmp  = path.join(__dirname,"../tmp");
   if (!fs.existsSync(tmp)) fs.mkdirSync(tmp);
-  const file = path.join(tmp,Date.now()+"_vid.mp4");
+  const file = path.join(tmp, Date.now()+"_vid.mp4");
 
   await streamPipe((await axios.get(url,{responseType:"stream"})).data,
                    fs.createWriteStream(file));
@@ -120,20 +121,20 @@ async function sendVideo(conn,{ chatId, video, userKey }) {
     mimetype:"video/mp4",
     fileName: video.title+".mp4",
     caption: "🎬 Video listo."
-  },{ quoted:userKey });
+  },{ quoted:userMsg });
   fs.unlinkSync(file);
 }
 
 /* ─── Descarga audio ─── */
-async function sendAudio(conn,{ chatId, video, userKey }) {
+async function sendAudio(conn,{ chatId, video, userMsg }) {
   const api = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(video.url)}&type=audio&quality=128kbps&apikey=russellxz`;
   const r   = await axios.get(api);
-  if (!r.data?.status || !r.data.data?.url) throw new Error("Fuente de audio no disponible");
+  if (!r.data?.status || !r.data.data?.url) throw new Error("No se pudo obtener el audio");
 
   const tmp   = path.join(__dirname,"../tmp");
   if (!fs.existsSync(tmp)) fs.mkdirSync(tmp);
-  const raw   = path.join(tmp,Date.now()+"_raw.m4a");
-  const final = path.join(tmp,Date.now()+"_audio.mp3");
+  const raw   = path.join(tmp, Date.now()+"_raw.m4a");
+  const final = path.join(tmp, Date.now()+"_audio.mp3");
 
   await streamPipe((await axios.get(r.data.data.url,{responseType:"stream"})).data,
                    fs.createWriteStream(raw));
@@ -147,7 +148,7 @@ async function sendAudio(conn,{ chatId, video, userKey }) {
     audio: fs.readFileSync(final),
     mimetype:"audio/mpeg",
     fileName: video.title+".mp3"
-  },{ quoted:userKey });
+  },{ quoted:userMsg });
 
   fs.unlinkSync(raw); fs.unlinkSync(final);
 }
