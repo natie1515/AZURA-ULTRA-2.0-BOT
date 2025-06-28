@@ -3,7 +3,7 @@ const path = require("path");
 
 const TTT_PATH = path.resolve("ttt.json");
 
-// 🧩 Función para pintar tablero
+// 🧩 Función para pintar el tablero
 function pintarTablero(tablero) {
   return `
 ╭───┬───┬───╮
@@ -17,10 +17,10 @@ function pintarTablero(tablero) {
 
 module.exports = async (msg, { conn }) => {
   const chatId = msg.key.remoteJid;
-  const sender = (msg.key.participant || msg.key.remoteJid).replace(/[^0-9]/g, "");
+  const senderId = msg.key.participant || msg.key.remoteJid; // ⚠️ Comparar con ID completo
 
   const partida = Object.values(global.tttGames || {}).find(g =>
-    g.reto === sender && !g.aceptada && g.chatId === chatId
+    g.reto === senderId && !g.aceptada && g.chatId === chatId
   );
 
   if (!partida) {
@@ -37,18 +37,17 @@ module.exports = async (msg, { conn }) => {
   const tablero = pintarTablero(partida.tablero);
 
   await conn.sendMessage(chatId, {
-    text: `✅ *La partida ha comenzado*\n🎮 Nombre: *${partida.nombre || "Sin nombre"}*\n\n🆚 *Jugadores:*\n➤ @${partida.jugador}\n➤ @${partida.reto}\n\n🎯 Turno inicial: @${partida.turno}\n\n${tablero}`,
-    mentions: partida.jugadores.map(j => `${j}@s.whatsapp.net`)
+    text: `✅ *La partida ha comenzado*\n🎮 Nombre: *${partida.nombre || "Sin nombre"}*\n\n🆚 *Jugadores:*\n➤ @${partida.jugador.split("@")[0]}\n➤ @${partida.reto.split("@")[0]}\n\n🎯 Turno inicial: @${partida.turno.split("@")[0]}\n\n${tablero}`,
+    mentions: partida.jugadores
   });
 
-  // Registrar usuarios en el archivo de estadísticas
-  if (!fs.existsSync(TTT_PATH)) fs.writeFileSync(TTT_PATH, JSON.stringify({}));
-  const stats = JSON.parse(fs.readFileSync(TTT_PATH));
-  for (const user of partida.jugadores) {
-    if (!stats[user]) stats[user] = { jugadas: 0, ganadas: 0, perdidas: 0 };
-    stats[user].jugadas += 1;
+  // Guardar estadísticas
+  const STATS = fs.existsSync(TTT_PATH) ? JSON.parse(fs.readFileSync(TTT_PATH)) : {};
+  for (const jid of partida.jugadores) {
+    if (!STATS[jid]) STATS[jid] = { jugadas: 0, ganadas: 0, perdidas: 0 };
+    STATS[jid].jugadas += 1;
   }
-  fs.writeFileSync(TTT_PATH, JSON.stringify(stats, null, 2));
+  fs.writeFileSync(TTT_PATH, JSON.stringify(STATS, null, 2));
 };
 
 module.exports.command = ["gottt"];
