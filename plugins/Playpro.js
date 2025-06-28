@@ -1,4 +1,4 @@
-/*  plugins2/playpro.js  —  descarga audio (👍) o vídeo (❤️) con reacción  */
+/*  plugins2/playpro.js  —  descarga audio (👍) o vídeo (❤️) con reacción */
 
 const axios  = require("axios");
 const yts    = require("yt-search");
@@ -52,28 +52,35 @@ module.exports = async (msg, { conn, text }) => {
     caption
   },{ quoted:msg });
 
-  /* guarda petición a la espera de reacción */
   pending[preview.key.id] = { chatId: msg.key.remoteJid, video };
+
   await conn.sendMessage(msg.key.remoteJid,{ react:{ text:"✅", key:msg.key } });
-};
 
-/* ───────────  LISTENER GLOBAL DE REACCIONES  ────────── */
-module.exports.init = conn => {
-  conn.ev.on("messages.reaction", async reactions => {
-    for (const r of reactions) {
-      const job = pending[r.key.id];
-      if (!job) continue;               // reacción a otro mensaje
-      delete pending[r.key.id];         // evita descargas duplicadas
+  /* asegura un único listener de reacciones */
+  if (!conn._playproListener) {
+    conn._playproListener = true;
 
-      try {
-        if (r.text === "👍")      await sendAudio(conn, job);
-        else if (r.text === "❤️") await sendVideo(conn, job);
-      } catch (e) {
-        await conn.sendMessage(job.chatId,
-          { text:`❌ Error: ${e.message}` });
+    conn.ev.on("messages.upsert", async ev => {
+      for (const m of ev.messages) {
+        if (!m.message?.reactionMessage) continue;
+
+        const reacted  = m.message.reactionMessage;
+        const job      = pending[reacted.key.id];
+        if (!job) continue;               // no es nuestro
+
+        const emoji = reacted.text;
+        delete pending[reacted.key.id];   // evita duplicados
+
+        try {
+          if (emoji === "👍")      await sendAudio(conn, job);
+          else if (emoji === "❤️") await sendVideo(conn, job);
+        } catch (e) {
+          await conn.sendMessage(job.chatId,
+            { text:`❌ Error: ${e.message}` });
+        }
       }
-    }
-  });
+    });
+  }
 };
 
 /* ───────────  DESCARGA DE VÍDEO  ─────────── */
