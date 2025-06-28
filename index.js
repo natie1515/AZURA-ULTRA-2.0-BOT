@@ -50,6 +50,34 @@ async function getPrompt() {
 }
 global.tttGames = {};
 //tres en ralla
+function registrarResultado(ganador, perdedor, empate = false) {
+  if (!global.tttStats) global.tttStats = {};
+
+  for (let id of [ganador, perdedor]) {
+    if (!global.tttStats[id]) {
+      global.tttStats[id] = {
+        jugadas: 0,
+        ganadas: 0,
+        perdidas: 0,
+        empates: 0
+      };
+    }
+    global.tttStats[id].jugadas += 1;
+  }
+
+  if (empate) {
+    global.tttStats[ganador].empates += 1;
+    global.tttStats[perdedor].empates += 1;
+  } else {
+    global.tttStats[ganador].ganadas += 1;
+    global.tttStats[perdedor].perdidas += 1;
+  }
+
+  // Guardar en ttt.json
+  const fs = require("fs");
+  fs.writeFileSync("ttt.json", JSON.stringify(global.tttStats, null, 2));
+}
+//importa   
 function pintarTablero(tablero) {
   return `
 ${tablero.slice(0, 3).join("")}
