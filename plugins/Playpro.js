@@ -218,4 +218,4 @@ async function downloadVideo(conn, job, asDocument, quoted) {
   fs.unlinkSync(file);
 }
 
-module.exports.command = ["playpro"];
+module.exports.command = ["play"];
