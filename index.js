@@ -636,57 +636,59 @@ if (isGroup && activos.antis?.[chatId] && !fromMe && stickerMsg) {
   }
 }
 // === FIN LÓGICA ANTIS STICKERS ===
-// === INICIO ANTIBOT SIMPLE ===
-try {
-  const activos = fs.existsSync("./activos.json") ? JSON.parse(fs.readFileSync("./activos.json", "utf-8")) : {};
-  const antibotActivo = activos.antibot?.[chatId];
-  if (!antibotActivo || !isGroup) return;
+// === INICIO LÓGICA ANTIBOT SIMPLE ===
 
-  const context = msg.message?.extendedTextMessage?.contextInfo;
-  if (!context || !context.participant) return;
+/**
+ * Estructura para rastrear avisos: { chatId: { userId: contador } }
+ */
+if (!global.antibotWarnings) global.antibotWarnings = {};
 
-  const citado = context.participant;
-  const quienResponde = msg.key.participant || msg.key.remoteJid;
-  if (quienResponde === citado) return; // ignorar si se responde a sí mismo
+sock.ev.on('messages.upsert', async ({ messages }) => {
+  for (const m of messages) {
+    const chatId = m.key.remoteJid;
+    const from = m.key.participant || m.key.remoteJid;
+    const isGroup = chatId.endsWith('@g.us');
+    if (!isGroup) continue;
 
-  const textoCitado = context.quotedMessage?.conversation || context.quotedMessage?.extendedTextMessage?.text || "";
-  const palabrasClave = ["menu", "play", "kick", "fb", "ig", "tt", "tiktok", "allmenu", "play2", "s"];
-  const cleanText = textoCitado.toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // sin tildes
-    .replace(/[^\w\s]/g, ""); // sin símbolos/emoji
+    const msg = m.message?.extendedTextMessage;
+    if (!msg?.contextInfo?.quotedMessage) continue;
 
-  if (!palabrasClave.some(p => cleanText.split(/\s+/).includes(p))) return;
+    const replyText = msg.contextInfo.quotedMessage.conversation || msg.contextInfo.quotedMessage.extendedTextMessage?.text;
+    const responder = from.replace(/[^0-9]/g, '');
 
-  const warnsPath = "./antibot_warnings.json";
-  let warns = fs.existsSync(warnsPath) ? JSON.parse(fs.readFileSync(warnsPath, "utf8")) : {};
-  const key = `${chatId}-${quienResponde}`;
+    const triggers = ['menu','allmenu','play','kick','ig','tt','tiktok'];
+    const cleaned = replyText.replace(/^[.#\p{Emoji}\s]+/u, '').trim().toLowerCase();
 
-  const meta = await sock.groupMetadata(chatId);
-  const esAdmin = meta.participants.find(p => p.id === quienResponde)?.admin;
-  if (esAdmin) return;
+    if (triggers.includes(cleaned)) {
+      // Inicializa contador radar
+      if (!global.antibotWarnings[chatId]) global.antibotWarnings[chatId] = {};
+      const userMap = global.antibotWarnings[chatId];
+      userMap[responder] = (userMap[responder] || 0) + 1;
 
-  warns[key] = (warns[key] || 0) + 1;
-
-  if (warns[key] === 1) {
-    await sock.sendMessage(chatId, {
-      text: `⚠️ @${quienResponde.replace(/[^0-9]/g, "")} *deja de usar tu bot en este grupo.*\nLa próxima vez serás eliminado.`,
-      mentions: [quienResponde]
-    });
-  } else {
-    await sock.sendMessage(chatId, {
-      text: `❌ @${quienResponde.replace(/[^0-9]/g, "")} fue eliminado por usar bot en modo prohibido.`,
-      mentions: [quienResponde]
-    });
-    await sock.groupParticipantsUpdate(chatId, [quienResponde], "remove");
-    delete warns[key];
+      if (userMap[responder] === 1) {
+        // Primera advertencia
+        await sock.sendMessage(chatId, {
+          text: `⚠️ @${responder}, se detectó que respondiste con un comando clave. Esta es tu primera advertencia.`,
+          mentions: [`${responder}@s.whatsapp.net`]
+        });
+      } else {
+        // Segunda infracción: expulsar usuario
+        try {
+          await sock.groupParticipantsUpdate(chatId, [`${responder}@s.whatsapp.net`], 'remove');
+          await sock.sendMessage(chatId, {
+            text: `❌ @${responder} ha sido eliminado por usar comandos clave repetidamente.`,
+            mentions: [`${responder}@s.whatsapp.net`]
+          });
+        } catch (e) {
+          console.error('Error expulsando:', e);
+        }
+        // Reiniciar contador del usuario
+        delete userMap[responder];
+      }
+    }
   }
-
-  fs.writeFileSync(warnsPath, JSON.stringify(warns, null, 2));
-
-} catch (e) {
-  console.error("❌ Error en antibot simple:", e);
-}
-// === FIN ANTIBOT SIMPLE ===
+});
+// === FIN LÓGICA ANTIBOT SIMPLE ===
     
 // === INICIO GUARDADO ANTIDELETE ===
 try {
