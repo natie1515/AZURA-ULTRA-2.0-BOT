@@ -636,59 +636,6 @@ if (isGroup && activos.antis?.[chatId] && !fromMe && stickerMsg) {
   }
 }
 // === FIN LÓGICA ANTIS STICKERS ===
-// === INICIO LÓGICA ANTIBOT SIMPLE ===
-
-/**
- * Estructura para rastrear avisos: { chatId: { userId: contador } }
- */
-if (!global.antibotWarnings) global.antibotWarnings = {};
-
-sock.ev.on('messages.upsert', async ({ messages }) => {
-  for (const m of messages) {
-    const chatId = m.key.remoteJid;
-    const from = m.key.participant || m.key.remoteJid;
-    const isGroup = chatId.endsWith('@g.us');
-    if (!isGroup) continue;
-
-    const msg = m.message?.extendedTextMessage;
-    if (!msg?.contextInfo?.quotedMessage) continue;
-
-    const replyText = msg.contextInfo.quotedMessage.conversation || msg.contextInfo.quotedMessage.extendedTextMessage?.text;
-    const responder = from.replace(/[^0-9]/g, '');
-
-    const triggers = ['menu','allmenu','play','kick','ig','tt','tiktok'];
-    const cleaned = replyText.replace(/^[.#\p{Emoji}\s]+/u, '').trim().toLowerCase();
-
-    if (triggers.includes(cleaned)) {
-      // Inicializa contador radar
-      if (!global.antibotWarnings[chatId]) global.antibotWarnings[chatId] = {};
-      const userMap = global.antibotWarnings[chatId];
-      userMap[responder] = (userMap[responder] || 0) + 1;
-
-      if (userMap[responder] === 1) {
-        // Primera advertencia
-        await sock.sendMessage(chatId, {
-          text: `⚠️ @${responder}, se detectó que respondiste con un comando clave. Esta es tu primera advertencia.`,
-          mentions: [`${responder}@s.whatsapp.net`]
-        });
-      } else {
-        // Segunda infracción: expulsar usuario
-        try {
-          await sock.groupParticipantsUpdate(chatId, [`${responder}@s.whatsapp.net`], 'remove');
-          await sock.sendMessage(chatId, {
-            text: `❌ @${responder} ha sido eliminado por usar comandos clave repetidamente.`,
-            mentions: [`${responder}@s.whatsapp.net`]
-          });
-        } catch (e) {
-          console.error('Error expulsando:', e);
-        }
-        // Reiniciar contador del usuario
-        delete userMap[responder];
-      }
-    }
-  }
-});
-// === FIN LÓGICA ANTIBOT SIMPLE ===
     
 // === INICIO GUARDADO ANTIDELETE ===
 try {
