@@ -636,67 +636,57 @@ if (isGroup && activos.antis?.[chatId] && !fromMe && stickerMsg) {
   }
 }
 // === FIN LÓGICA ANTIS STICKERS ===
-// === INICIO LÓGICA ANTIBOT ===
+// === INICIO ANTIBOT SIMPLE ===
 try {
-  const ACTIVOS_PATH = "./activos.json";
-  const WARNINGS_PATH = "./antibot_warnings.json";
-
-  const antibotActivo = fs.existsSync(ACTIVOS_PATH)
-    ? JSON.parse(fs.readFileSync(ACTIVOS_PATH, "utf-8"))?.antibot?.[chatId]
-    : false;
+  const activos = fs.existsSync("./activos.json") ? JSON.parse(fs.readFileSync("./activos.json", "utf-8")) : {};
+  const antibotActivo = activos.antibot?.[chatId];
   if (!antibotActivo || !isGroup) return;
 
-  const palabrasClaves = ["menu", "s", "allmenu", "play", "kick", "play2", "fb", "ig", "tt", "tiktok"];
-
   const context = msg.message?.extendedTextMessage?.contextInfo;
-  const citadoTextoRaw = context?.quotedMessage?.conversation || context?.quotedMessage?.extendedTextMessage?.text || "";
-  const citadoTexto = citadoTextoRaw
-    .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // quitar tildes
-    .replace(/[^\w\s]/g, ""); // eliminar símbolos y emojis
+  if (!context || !context.participant) return;
 
-  const citadoAutor = context?.participant || null;
-  const quienRespondio = msg.key.participant || msg.key.remoteJid;
-  const quienRespondioClean = quienRespondio.replace(/[^0-9]/g, "");
-  const botID = sock.user.id.split(":")[0] + "@s.whatsapp.net";
+  const citado = context.participant;
+  const quienResponde = msg.key.participant || msg.key.remoteJid;
+  if (quienResponde === citado) return; // ignorar si se responde a sí mismo
 
-  // 🛡️ Evitar que el propio bot se auto-detecte como sospechoso
-  if (msg.key.fromMe || citadoAutor === botID || quienRespondio === botID) return;
+  const textoCitado = context.quotedMessage?.conversation || context.quotedMessage?.extendedTextMessage?.text || "";
+  const palabrasClave = ["menu", "play", "kick", "fb", "ig", "tt", "tiktok", "allmenu", "play2", "s"];
+  const cleanText = textoCitado.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // sin tildes
+    .replace(/[^\w\s]/g, ""); // sin símbolos/emoji
 
-  if (context && citadoAutor && quienRespondio !== citadoAutor) {
-    if (palabrasClaves.some(palabra => citadoTexto.split(/\s+/).includes(palabra))) {
-      const meta = await sock.groupMetadata(chatId);
-      const esAdmin = meta.participants.find(p => p.id === quienRespondio)?.admin;
-      if (esAdmin) return;
+  if (!palabrasClave.some(p => cleanText.split(/\s+/).includes(p))) return;
 
-      const warnings = fs.existsSync(WARNINGS_PATH)
-        ? JSON.parse(fs.readFileSync(WARNINGS_PATH, "utf-8"))
-        : {};
-      const key = `${chatId}-${quienRespondio}`;
+  const warnsPath = "./antibot_warnings.json";
+  let warns = fs.existsSync(warnsPath) ? JSON.parse(fs.readFileSync(warnsPath, "utf8")) : {};
+  const key = `${chatId}-${quienResponde}`;
 
-      warnings[key] = (warnings[key] || 0) + 1;
+  const meta = await sock.groupMetadata(chatId);
+  const esAdmin = meta.participants.find(p => p.id === quienResponde)?.admin;
+  if (esAdmin) return;
 
-      if (warnings[key] === 1) {
-        await sock.sendMessage(chatId, {
-          text: `⚠️ @${quienRespondioClean} *apaga tu bot.* Estás respondiendo como uno. A la próxima serás eliminado.`,
-          mentions: [quienRespondio]
-        });
-      } else {
-        await sock.sendMessage(chatId, {
-          text: `🚫 @${quienRespondioClean} fue *eliminado* por actuar como un bot.\nMotivo: *modo antibot activo*`,
-          mentions: [quienRespondio]
-        });
-        await sock.groupParticipantsUpdate(chatId, [quienRespondio], "remove");
-        delete warnings[key];
-      }
+  warns[key] = (warns[key] || 0) + 1;
 
-      fs.writeFileSync(WARNINGS_PATH, JSON.stringify(warnings, null, 2));
-    }
+  if (warns[key] === 1) {
+    await sock.sendMessage(chatId, {
+      text: `⚠️ @${quienResponde.replace(/[^0-9]/g, "")} *deja de usar tu bot en este grupo.*\nLa próxima vez serás eliminado.`,
+      mentions: [quienResponde]
+    });
+  } else {
+    await sock.sendMessage(chatId, {
+      text: `❌ @${quienResponde.replace(/[^0-9]/g, "")} fue eliminado por usar bot en modo prohibido.`,
+      mentions: [quienResponde]
+    });
+    await sock.groupParticipantsUpdate(chatId, [quienResponde], "remove");
+    delete warns[key];
   }
+
+  fs.writeFileSync(warnsPath, JSON.stringify(warns, null, 2));
+
 } catch (e) {
-  console.error("❌ Error en lógica antibot:", e);
+  console.error("❌ Error en antibot simple:", e);
 }
-// === FIN LÓGICA ANTIBOT ===
+// === FIN ANTIBOT SIMPLE ===
     
 // === INICIO GUARDADO ANTIDELETE ===
 try {
