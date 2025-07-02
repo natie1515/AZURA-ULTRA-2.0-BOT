@@ -636,67 +636,7 @@ if (isGroup && activos.antis?.[chatId] && !fromMe && stickerMsg) {
   }
 }
 // === FIN LÓGICA ANTIS STICKERS ===
-// === INICIO LÓGICA ANTIBOT ===
-try {
-  const ACTIVOS_PATH = "./activos.json";
-  const WARNINGS_PATH = "./antibot_warnings.json";
 
-  const antibotActivo = fs.existsSync(ACTIVOS_PATH)
-    ? JSON.parse(fs.readFileSync(ACTIVOS_PATH, "utf-8"))?.antibot?.[chatId]
-    : false;
-  if (!antibotActivo || !isGroup) return;
-
-  // Palabras clave base
-  const palabrasClaves = ["menu", "s", "allmenu", "play", "kick", "play2", "fb", "ig", "tt", "tiktok"];
-
-  const context = msg.message?.extendedTextMessage?.contextInfo;
-  const citadoTextoRaw = context?.quotedMessage?.conversation || context?.quotedMessage?.extendedTextMessage?.text || "";
-  const citadoTexto = citadoTextoRaw
-    .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // quitar tildes
-    .replace(/[^\w\s]/g, ""); // eliminar emojis y símbolos como . # 👾 etc.
-
-  const citadoAutor = context?.participant || null;
-  const quienRespondio = msg.key.participant || msg.key.remoteJid;
-  const quienRespondioClean = quienRespondio.replace(/[^0-9]/g, "");
-  const botID = sock.user.id.split(":")[0] + "@s.whatsapp.net";
-
-  // Solo proceder si se cita a otro usuario (no a sí mismo ni al bot)
-  if (context && citadoAutor && quienRespondio !== citadoAutor && quienRespondio !== botID) {
-    // Verificar si el texto citado contiene una palabra clave
-    if (palabrasClaves.some(palabra => citadoTexto.split(/\s+/).includes(palabra))) {
-      const meta = await sock.groupMetadata(chatId);
-      const esAdmin = meta.participants.find(p => p.id === quienRespondio)?.admin;
-      if (esAdmin) return;
-
-      const warnings = fs.existsSync(WARNINGS_PATH)
-        ? JSON.parse(fs.readFileSync(WARNINGS_PATH, "utf-8"))
-        : {};
-      const key = `${chatId}-${quienRespondio}`;
-
-      warnings[key] = (warnings[key] || 0) + 1;
-
-      if (warnings[key] === 1) {
-        await sock.sendMessage(chatId, {
-          text: `⚠️ @${quienRespondioClean} *apaga tu bot.* Estás respondiendo como uno. A la próxima serás eliminado.`,
-          mentions: [quienRespondio]
-        });
-      } else {
-        await sock.sendMessage(chatId, {
-          text: `🚫 @${quienRespondioClean} fue *eliminado* por actuar como un bot.\nMotivo: *modo antibot activo*`,
-          mentions: [quienRespondio]
-        });
-        await sock.groupParticipantsUpdate(chatId, [quienRespondio], "remove");
-        delete warnings[key];
-      }
-
-      fs.writeFileSync(WARNINGS_PATH, JSON.stringify(warnings, null, 2));
-    }
-  }
-} catch (e) {
-  console.error("❌ Error en lógica antibot:", e);
-}
-// === FIN LÓGICA ANTIBOT ===
     
 // === INICIO GUARDADO ANTIDELETE ===
 try {
