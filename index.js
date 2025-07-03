@@ -571,20 +571,20 @@ try {
   if (!isGroup && activos.antiprivado && !isOwner) {
     await sock.updateBlockStatus(senderId, "block");
 
-    // Eliminar chat del bot
-    await sock.chatModify({ clear: { messages: [{ id: msg.key.id, fromMe: false }] } }, chatId);
+    // ✅ Eliminar completamente el chat del usuario
+    await sock.chatModify({ delete: true }, chatId);
 
-    // Avisar al owner
+    // 📩 Avisar al owner
     await sock.sendMessage("15167096032@s.whatsapp.net", {
       text: `⚠️ Se bloqueó automáticamente a: wa.me/${senderClean} por enviar mensaje en privado al bot.`
     });
 
-    return; // ← no procesar nada más
+    return;
   }
 } catch (e) {
   console.error("❌ Error en lógica antiprivado:", e);
 }
-// === FIN LÓGICA ANTIPRIVADO ===    
+// === FIN LÓGICA ANTIPRIVADO ===
 // === INICIO LÓGICA ANTIS STICKERS (15s, 3 strikes, sin notificación de desbloqueo) ===
 const stickerMsg = msg.message?.stickerMessage || msg.message?.ephemeralMessage?.message?.stickerMessage;
 
