@@ -562,7 +562,8 @@ try {
   const isGroup = chatId.endsWith("@g.us");
 
   const senderClean = senderId.replace(/[^0-9]/g, "");
-  const botNumber = sock.user.id.split(":")[0]; // Solo el número del bot
+  const chatClean = chatId.replace(/[^0-9]/g, "");
+  const botNumber = sock.user.id.split(":")[0]; // número puro del bot
   const isOwner = global.owner.some(([id]) => id === senderClean);
 
   const activosPath = "./activos.json";
@@ -570,8 +571,12 @@ try {
     ? JSON.parse(fs.readFileSync(activosPath, "utf-8"))
     : {};
 
-  if (!isGroup && activos.antiprivado && !isOwner && senderClean !== botNumber) {
-    // Bloquear al usuario
+  // SOLO bloquear si:
+  // 1. Es chat privado
+  // 2. El que envió NO es el bot
+  // 3. El que envió NO es owner
+  // 4. El bot NO está respondiendo (chatId !== número del bot)
+  if (!isGroup && activos.antiprivado && !isOwner && senderClean !== botNumber && chatClean !== botNumber) {
     await sock.updateBlockStatus(senderId, "block");
 
     // Avisar al owner
