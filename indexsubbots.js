@@ -58,7 +58,7 @@ function cleanupSession(sessionPath) {
   }
   if (fs.existsSync(sessionPath)) {
     fs.rmSync(sessionPath, { recursive: true, force: true });
-    console.log(`🧹 Sesión corrupta eliminada en: ${path.basename(sessionPath)}`);
+    console.log(`🧹 Sesión eliminada en: ${path.basename(sessionPath)}`);
   }
 }
 
