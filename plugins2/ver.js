@@ -1,15 +1,14 @@
 // plugins/ver.js
 const fs = require("fs");
 const path = require("path");
-const { downloadContentFromMessage } = require("@adiwajshing/baileys");
+// Importa desde "baileys", no "@adiwajshing/baileys"
+const { downloadContentFromMessage } = require("baileys");
 
 module.exports = async (msg, { conn }) => {
   try {
-    // Obtener mensaje citado
     const context = msg.message?.extendedTextMessage?.contextInfo;
-    const stanzaId = context?.stanzaId;
     const quotedMsg = context?.quotedMessage;
-    if (!stanzaId || !quotedMsg) {
+    if (!context?.stanzaId || !quotedMsg) {
       return conn.sendMessage(
         msg.key.remoteJid,
         { text: "❌ *Error:* Debes responder a una imagen, vídeo o nota de voz para reenviarla." },
@@ -17,8 +16,8 @@ module.exports = async (msg, { conn }) => {
       );
     }
 
-    // Desempaquetar viewOnce / ephemeral
-    const unwrap = (node) => {
+    // unwrap viewOnce/ephemeral
+    const unwrap = node => {
       while (
         node?.viewOnceMessage?.message ||
         node?.viewOnceMessageV2?.message ||
@@ -36,14 +35,11 @@ module.exports = async (msg, { conn }) => {
     };
     const inner = unwrap(quotedMsg);
 
-    // Detectar tipo de medio
     let mediaType, mediaNode;
     if (inner.imageMessage) {
-      mediaType = "image";
-      mediaNode = inner.imageMessage;
+      mediaType = "image"; mediaNode = inner.imageMessage;
     } else if (inner.videoMessage) {
-      mediaType = "video";
-      mediaNode = inner.videoMessage;
+      mediaType = "video"; mediaNode = inner.videoMessage;
     } else if (inner.audioMessage || inner.voiceMessage || inner.pttMessage) {
       mediaType = "audio";
       mediaNode = inner.audioMessage || inner.voiceMessage || inner.pttMessage;
@@ -55,20 +51,19 @@ module.exports = async (msg, { conn }) => {
       );
     }
 
-    // Mostrar reacción de carga
+    // reacción de carga
     await conn.sendMessage(msg.key.remoteJid, {
       react: { text: "⏳", key: msg.key }
     });
 
-    // Descargar contenido
+    // crear tmp
     const tmpDir = path.join(__dirname, "../tmp");
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
 
+    // descargar stream
     const stream = await downloadContentFromMessage(mediaNode, mediaType);
     let buffer = Buffer.alloc(0);
-    for await (const chunk of stream) {
-      buffer = Buffer.concat([buffer, chunk]);
-    }
+    for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
     if (!buffer.length) {
       return conn.sendMessage(
         msg.key.remoteJid,
@@ -77,34 +72,34 @@ module.exports = async (msg, { conn }) => {
       );
     }
 
-    // Prepara opciones de envío
-    const creditText = "> 🔓 Recuperado por:\n`Azura Ultra`";
+    const credit = "> 🔓 Recuperado por:\n`Azura Ultra`";
     const opts = { mimetype: mediaNode.mimetype };
+
     if (mediaType === "image") {
       opts.image = buffer;
-      opts.caption = creditText;
+      opts.caption = credit;
     } else if (mediaType === "video") {
       opts.video = buffer;
-      opts.caption = creditText;
+      opts.caption = credit;
     } else {
       opts.audio = buffer;
       opts.ptt = mediaNode.ptt ?? true;
       if (mediaNode.seconds) opts.seconds = mediaNode.seconds;
     }
 
-    // Enviar medio
+    // envía medio
     await conn.sendMessage(msg.key.remoteJid, opts, { quoted: msg });
 
-    // Si es audio, enviar crédito aparte para que no se convierta en PTT
+    // crédito extra para audio
     if (mediaType === "audio") {
       await conn.sendMessage(
         msg.key.remoteJid,
-        { text: creditText },
+        { text: credit },
         { quoted: msg }
       );
     }
 
-    // Confirmación final
+    // confirmación final
     await conn.sendMessage(msg.key.remoteJid, {
       react: { text: "✅", key: msg.key }
     });
