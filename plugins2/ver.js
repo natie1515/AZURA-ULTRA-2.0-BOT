@@ -1,11 +1,10 @@
 // plugins/ver.js
 const fs = require("fs");
 const path = require("path");
-// Importa desde "baileys", no "@adiwajshing/baileys"
-const { downloadContentFromMessage } = require("baileys");
 
 module.exports = async (msg, { conn }) => {
   try {
+    // obtener contexto de mensaje citado
     const context = msg.message?.extendedTextMessage?.contextInfo;
     const quotedMsg = context?.quotedMessage;
     if (!context?.stanzaId || !quotedMsg) {
@@ -16,7 +15,7 @@ module.exports = async (msg, { conn }) => {
       );
     }
 
-    // unwrap viewOnce/ephemeral
+    // desempaquetar viewOnce / ephemeral
     const unwrap = node => {
       while (
         node?.viewOnceMessage?.message ||
@@ -35,6 +34,7 @@ module.exports = async (msg, { conn }) => {
     };
     const inner = unwrap(quotedMsg);
 
+    // detectar tipo de medio
     let mediaType, mediaNode;
     if (inner.imageMessage) {
       mediaType = "image"; mediaNode = inner.imageMessage;
@@ -56,14 +56,19 @@ module.exports = async (msg, { conn }) => {
       react: { text: "⏳", key: msg.key }
     });
 
-    // crear tmp
+    // crear carpeta temporal
     const tmpDir = path.join(__dirname, "../tmp");
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
 
-    // descargar stream
-    const stream = await downloadContentFromMessage(mediaNode, mediaType);
+    // descargar stream usando el método de conn
+    if (typeof conn.downloadContentFromMessage !== "function") {
+      throw new Error("El método downloadContentFromMessage no está disponible en 'conn'.");
+    }
+    const stream = await conn.downloadContentFromMessage(mediaNode, mediaType);
     let buffer = Buffer.alloc(0);
-    for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
+    for await (const chunk of stream) {
+      buffer = Buffer.concat([buffer, chunk]);
+    }
     if (!buffer.length) {
       return conn.sendMessage(
         msg.key.remoteJid,
@@ -72,9 +77,9 @@ module.exports = async (msg, { conn }) => {
       );
     }
 
+    // preparar opciones de envío
     const credit = "> 🔓 Recuperado por:\n`Azura Ultra`";
     const opts = { mimetype: mediaNode.mimetype };
-
     if (mediaType === "image") {
       opts.image = buffer;
       opts.caption = credit;
@@ -87,10 +92,10 @@ module.exports = async (msg, { conn }) => {
       if (mediaNode.seconds) opts.seconds = mediaNode.seconds;
     }
 
-    // envía medio
+    // enviar medio citado al usuario original
     await conn.sendMessage(msg.key.remoteJid, opts, { quoted: msg });
 
-    // crédito extra para audio
+    // si es audio, enviar crédito aparte (evita que se convierta a PTT)
     if (mediaType === "audio") {
       await conn.sendMessage(
         msg.key.remoteJid,
