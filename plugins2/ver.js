@@ -1,22 +1,20 @@
-// plugins/ver.js
-const fs = require("fs");
-const path = require("path");
+const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
 
-module.exports = async (msg, { conn }) => {
+module.exports.command = ["ver"];
+
+module.exports.run = async ({ msg, conn }) => {
   try {
-    // obtener contexto de mensaje citado
-    const context = msg.message?.extendedTextMessage?.contextInfo;
-    const quotedMsg = context?.quotedMessage;
-    if (!context?.stanzaId || !quotedMsg) {
+    const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+    if (!quoted) {
       return conn.sendMessage(
         msg.key.remoteJid,
-        { text: "❌ *Error:* Debes responder a una imagen, vídeo o nota de voz para reenviarla." },
+        { text: "❌ *Error:* Debes responder a una imagen, video o nota de voz para reenviarla." },
         { quoted: msg }
       );
     }
 
-    // desempaquetar viewOnce / ephemeral
-    const unwrap = node => {
+    const unwrap = m => {
+      let node = m;
       while (
         node?.viewOnceMessage?.message ||
         node?.viewOnceMessageV2?.message ||
@@ -32,17 +30,17 @@ module.exports = async (msg, { conn }) => {
       }
       return node;
     };
-    const inner = unwrap(quotedMsg);
 
-    // detectar tipo de medio
-    let mediaType, mediaNode;
+    const inner = unwrap(quoted);
+
+    let mediaType, mediaMsg;
     if (inner.imageMessage) {
-      mediaType = "image"; mediaNode = inner.imageMessage;
+      mediaType = "image"; mediaMsg = inner.imageMessage;
     } else if (inner.videoMessage) {
-      mediaType = "video"; mediaNode = inner.videoMessage;
+      mediaType = "video"; mediaMsg = inner.videoMessage;
     } else if (inner.audioMessage || inner.voiceMessage || inner.pttMessage) {
       mediaType = "audio";
-      mediaNode = inner.audioMessage || inner.voiceMessage || inner.pttMessage;
+      mediaMsg = inner.audioMessage || inner.voiceMessage || inner.pttMessage;
     } else {
       return conn.sendMessage(
         msg.key.remoteJid,
@@ -51,25 +49,20 @@ module.exports = async (msg, { conn }) => {
       );
     }
 
-    // reacción de carga
     await conn.sendMessage(msg.key.remoteJid, {
       react: { text: "⏳", key: msg.key }
     });
 
-    // crear carpeta temporal
-    const tmpDir = path.join(__dirname, "../tmp");
-    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
+    const mediaBuffer = await (async () => {
+      try {
+        const stream = await downloadContentFromMessage(mediaMsg, mediaType);
+        let buf = Buffer.alloc(0);
+        for await (const chunk of stream) buf = Buffer.concat([buf, chunk]);
+        return buf;
+      } catch { return null; }
+    })();
 
-    // descargar stream usando el método de conn
-    if (typeof conn.downloadContentFromMessage !== "function") {
-      throw new Error("El método downloadContentFromMessage no está disponible en 'conn'.");
-    }
-    const stream = await conn.downloadContentFromMessage(mediaNode, mediaType);
-    let buffer = Buffer.alloc(0);
-    for await (const chunk of stream) {
-      buffer = Buffer.concat([buffer, chunk]);
-    }
-    if (!buffer.length) {
+    if (!mediaBuffer?.length) {
       return conn.sendMessage(
         msg.key.remoteJid,
         { text: "❌ *Error:* No se pudo descargar el archivo. Intenta de nuevo." },
@@ -77,25 +70,23 @@ module.exports = async (msg, { conn }) => {
       );
     }
 
-    // preparar opciones de envío
     const credit = "> 🔓 Recuperado por:\n`Azura Ultra`";
-    const opts = { mimetype: mediaNode.mimetype };
+    const opts = { mimetype: mediaMsg.mimetype };
+
     if (mediaType === "image") {
-      opts.image = buffer;
+      opts.image = mediaBuffer;
       opts.caption = credit;
     } else if (mediaType === "video") {
-      opts.video = buffer;
+      opts.video = mediaBuffer;
       opts.caption = credit;
     } else {
-      opts.audio = buffer;
-      opts.ptt = mediaNode.ptt ?? true;
-      if (mediaNode.seconds) opts.seconds = mediaNode.seconds;
+      opts.audio = mediaBuffer;
+      opts.ptt = mediaMsg.ptt ?? true;
+      if (mediaMsg.seconds) opts.seconds = mediaMsg.seconds;
     }
 
-    // enviar medio citado al usuario original
     await conn.sendMessage(msg.key.remoteJid, opts, { quoted: msg });
 
-    // si es audio, enviar crédito aparte (evita que se convierta a PTT)
     if (mediaType === "audio") {
       await conn.sendMessage(
         msg.key.remoteJid,
@@ -104,7 +95,6 @@ module.exports = async (msg, { conn }) => {
       );
     }
 
-    // confirmación final
     await conn.sendMessage(msg.key.remoteJid, {
       react: { text: "✅", key: msg.key }
     });
@@ -118,5 +108,3 @@ module.exports = async (msg, { conn }) => {
     );
   }
 };
-
-module.exports.command = ["ver"];
