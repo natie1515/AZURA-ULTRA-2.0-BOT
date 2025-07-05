@@ -64,7 +64,8 @@ const handler = async (msg, { conn, command, sock }) => {
           keys: makeCacheableSignalKeyStore(state.keys, logger)
         },
         printQRInTerminal: !usarPairingCode,
-        browser: ['Windows', 'Chrome']
+        browser: ['Windows', 'Chrome'],
+        syncFullHistory: false,
       });
 
       let reconnectionAttempts = 0;
