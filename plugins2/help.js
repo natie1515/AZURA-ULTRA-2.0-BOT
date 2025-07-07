@@ -2,28 +2,41 @@ const fs = require("fs");
 const path = require("path");
 
 const handler = async (msg, { conn }) => {
-  const rawID = conn.user?.id || "";
-  const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
+  try {
+    const rawID = conn.user?.id || "";
+    const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
 
-  const prefixPath = path.resolve("prefixes.json");
-  let prefixes = {};
-  if (fs.existsSync(prefixPath)) {
-    prefixes = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
-  }
-  const usedPrefix = prefixes[subbotID] || ".";
-  const userId = msg.key.participant || msg.key.remoteJid;
+    const prefixPath = path.resolve("prefixes.json");
+    const menuConfigPath = path.resolve("setmenu.json");
 
-  // Reacción normal (no cambia)
-  await conn.sendMessage(msg.key.remoteJid, {
-    react: { text: "📜", key: msg.key }
-  });
+    let prefixes = {};
+    if (fs.existsSync(prefixPath)) {
+      prefixes = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
+    }
 
-  const menu = `
-╔⌬ AZURA Ultra 2.0 SUBBOT⌬╗
+    const usedPrefix = prefixes[subbotID] || ".";
+    const userId = msg.key.participant || msg.key.remoteJid;
+
+    // Reacción de carga
+    await conn.sendMessage(msg.key.remoteJid, {
+      react: { text: "📜", key: msg.key }
+    });
+
+    let customData = {};
+    if (fs.existsSync(menuConfigPath)) {
+      customData = JSON.parse(fs.readFileSync(menuConfigPath, "utf8"));
+    }
+
+    const personal = customData[subbotID];
+    const imageBuffer = personal?.imagen ? Buffer.from(personal.imagen, "base64") : null;
+    const nombreMenu = personal?.nombre || "Azura Ultra 2.0 Subbot";
+
+    const caption = `
+╔⌬ ${nombreMenu}⌬╗
 ║   Menú por categorías  
 ╚═──────────────────═╝
 
-〔 👇Has Que Tus Amigos Sean *SUBBOTS* Tambien Diles que envien estos comandos👇 〕
+〔 👇Haz Que Tus Amigos Sean *SUBBOTS* También Diles Que Envíen Estos Comandos👇 〕
 ⟢ ${usedPrefix}serbot / qr
 ⟢ ${usedPrefix}code / codigo 
 ⟢ ${usedPrefix}sercode / codigo
@@ -80,7 +93,6 @@ const handler = async (msg, { conn }) => {
 ⟢ ${usedPrefix}topslap
 
 〔 Configuración & Dueño 〕
-
 ▣ ${usedPrefix}antideletepri on o off
 ▣ ${usedPrefix}setprefix ↷
   Cambiar prefijo del subbot
@@ -93,28 +105,35 @@ const handler = async (msg, { conn }) => {
 ▣ ${usedPrefix}addlista ↷
   Autorizar usuario privado pa lo usen.
 ▣ ${usedPrefix}dellista ↷
-  Quitar usuario autorizado pa que o lo usen.
+  Quitar usuario autorizado pa que no lo usen.
 ▣ ${usedPrefix}delgrupo ↷
   Eliminar grupo autorizado pa que no lo usen.
 ▣ ${usedPrefix}ping ↷
   Medir latencia del bot
 
-═⌬Azura Ultra 2.0 Subbot⌬═`;
+━━━━━━━━━━━━━━━━━━
+📍 TikTok: https://www.tiktok.com/@azuritabot?_t=ZT-8xpG3PgDQeT&_r=1
+🎨 Subbot personalizado por el usuario.
+`;
 
-  // Mensaje principal con sendMessage2
-  await conn.sendMessage(
-  msg.key.remoteJid,
-  {
-    image: { url: `https://cdn.russellxz.click/76faa1fa.jpeg` },
-    caption: menu
-  },
-  { quoted: msg }
-);
+    await conn.sendMessage(
+      msg.key.remoteJid,
+      {
+        image: imageBuffer ? imageBuffer : { url: `https://cdn.russellxz.click/76faa1fa.jpeg` },
+        caption,
+      },
+      { quoted: msg }
+    );
 
-  // Reacción final normal (no cambia)
-  await conn.sendMessage(msg.key.remoteJid, {
-    react: { text: "✅", key: msg.key }
-  });
+    await conn.sendMessage(msg.key.remoteJid, {
+      react: { text: "✅", key: msg.key }
+    });
+  } catch (e) {
+    console.error("❌ Error en el comando menu personalizado:", e);
+    await conn.sendMessage(msg.key.remoteJid, {
+      text: "❌ Hubo un error mostrando el menú."
+    }, { quoted: msg });
+  }
 };
 
 handler.command = ['menu', 'help', 'ayuda', 'comandos'];
