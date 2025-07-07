@@ -5,9 +5,16 @@ const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
 const handler = async (msg, { conn, text }) => {
   try {
     const subbotID = (conn.user.id || "").split(":")[0] + "@s.whatsapp.net";
-    const setMenuPath = path.resolve("setmenu.json");
+    const senderID = msg.key.participant || msg.key.remoteJid;
 
-    // Verificar si se respondió a una imagen
+    // Verificar que solo el subbot pueda usarlo
+    if (!senderID.includes(subbotID)) {
+      return await conn.sendMessage(msg.key.remoteJid, {
+        text: "❌ Este comando solo puede ser usado por el *propietario del subbot*.",
+      }, { quoted: msg });
+    }
+
+    const setMenuPath = path.resolve("setmenu.json");
     const ctx = msg.message?.extendedTextMessage?.contextInfo;
     const quoted = ctx?.quotedMessage;
     const imageMsg = quoted?.imageMessage;
@@ -25,7 +32,7 @@ const handler = async (msg, { conn, text }) => {
 
     const base64 = buffer.toString("base64");
 
-    // Cargar archivo existente o iniciar uno nuevo
+    // Cargar o iniciar archivo setmenu.json
     let data = fs.existsSync(setMenuPath)
       ? JSON.parse(fs.readFileSync(setMenuPath, "utf8"))
       : {};
@@ -38,13 +45,14 @@ const handler = async (msg, { conn, text }) => {
     fs.writeFileSync(setMenuPath, JSON.stringify(data, null, 2));
 
     await conn.sendMessage(msg.key.remoteJid, {
-      text: `✅ Menú personalizado guardado exitosamente como:\n*${text}*\n\n📸 Imagen personalizada aplicada.`,
+      text: `✅ Menú personalizado guardado como:\n*${text}*\n📸 Imagen aplicada correctamente.`,
       quoted: msg
     });
 
     await conn.sendMessage(msg.key.remoteJid, {
       react: { text: "✅", key: msg.key }
     });
+
   } catch (e) {
     console.error("❌ Error en setmenu:", e);
     await conn.sendMessage(msg.key.remoteJid, {
