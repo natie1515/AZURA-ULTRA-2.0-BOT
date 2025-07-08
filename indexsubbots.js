@@ -9,7 +9,7 @@ const {
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
   DisconnectReason,
-  downloadContentFromMessage, // ← función para descargar multimedia
+  downloadContentFromMessage,
 } = require("@whiskeysockets/baileys");
 
 /* ─── Constantes de configuración ────────────────────────── */
@@ -105,9 +105,7 @@ async function iniciarSubbot(sessionPath, retryCount = 0) {
 
       if (connection === "open") {
         console.log(`✅ Subbot ${dir} conectado exitosamente.`);
-        retryCount = 0; // Reinicia el contador de reintentos en una conexión exitosa
-
-        /* Mantiene el mensaje fantasma para inicializar sender-key */
+        retryCount = 0;
 
         subSock
           .sendMessage("status@broadcast", { text: "🟢 sub-bot online" })
@@ -152,9 +150,9 @@ Si deseas que funcione en grupos, haz lo siguiente:
 
 🚀 ¡Disfruta del poder de Azura Ultra 2.0 y automatiza tu experiencia como nunca antes!`,
             })
-            .catch(() => {}); // silencia si usuario bloqueó al bot
+            .catch(() => {});
 
-          await fs.writeFile(marker, "ok"); // crea el marcador
+          await fs.writeFile(marker, "ok");
         }
       } else if (connection === "close") {
         console.log(
@@ -170,11 +168,9 @@ Si deseas que funcione en grupos, haz lo siguiente:
           DisconnectReason.forbidden,
         ].includes(statusCode);
 
-        // Si es un error fatal, elimina la sesión por completo.
         if (isFatalError) {
           await cleanupSession(sessionPath);
         } else {
-          // Si es un error temporal, intenta reconectar.
           delete global.subBots[dir];
           if (retryCount < MAX_RECONEXION_INTENTOS) {
             console.log(`🔄 Reintentando conectar ${dir} en ${RETRY_DELAY_MS / 1000} segundos...`);
@@ -277,7 +273,6 @@ Si deseas que funcione en grupos, haz lo siguiente:
           m.message?.videoMessage?.caption ||
           "";
 
-        // Cargar configuraciones de forma asíncrona y en paralelo
         const [dataPrefijos, dataGrupos, dataPriv, activossubbots] = await Promise.all([
           readJsonFile(path.join(__dirname, "prefixes.json")),
           readJsonFile(path.join(__dirname, "grupo.json")),
