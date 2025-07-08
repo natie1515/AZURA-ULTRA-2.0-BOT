@@ -252,255 +252,331 @@ Si deseas que funcione en grupos, haz lo siguiente:
     });
 
     /* ── Mensajes ────────────────────────────────────────── */
-    subSock.ev.on("messages.upsert", async (msg) => {
-      try {
-        const m = msg.messages[0];
-        if (!m || !m.message) return;
+                subSock.ev.on("messages.upsert", async msg => {
+          try {
+            const m = msg.messages[0];
+            if (!m || !m.message) return;
 
-        const from = m.key.remoteJid;
-        const isGroup = from.endsWith("@g.us");
-        const isFromSelf = m.key.fromMe;
-        const senderJid = m.key.participant || from;
-        const senderNum = senderJid.split("@")[0];
-        const rawID = subSock.user?.id || "";
-        const subbotID = `${rawID.split(":")[0]}@s.whatsapp.net`;
-        const botNum = rawID.split(":")[0].replace(/[^0-9]/g, "");
+            const from = m.key.remoteJid;
+            const isGroup = from.endsWith("@g.us");
+            const isFromSelf = m.key.fromMe;
+            const senderJid = m.key.participant || from;
+            const senderNum = senderJid.split("@")[0];
+            const rawID = subSock.user?.id || "";
+            const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
 
-        const messageText =
-          m.message?.conversation ||
-          m.message?.extendedTextMessage?.text ||
-          m.message?.imageMessage?.caption ||
-          m.message?.videoMessage?.caption ||
-          "";
-
-        const [dataPrefijos, dataGrupos, dataPriv, activossubbots] = await Promise.all([
-          readJsonFile(path.join(__dirname, "prefixes.json")),
-          readJsonFile(path.join(__dirname, "grupo.json")),
-          readJsonFile(path.join(__dirname, "listasubots.json")),
-          readJsonFile(path.join(__dirname, "activossubbots.json")),
-        ]);
-
-        await handleAntiDelete(subSock, m, from, isGroup);
-
-        if (isGroup && !isFromSelf) {
-          const antilinkActivo = activossubbots.antilink?.[subbotID]?.[from];
-          if (antilinkActivo && /https:\/\/chat\.whatsapp\.com\//i.test(messageText)) {
-            try {
-              const metadata = await subSock.groupMetadata(from);
-              const participant = metadata.participants.find((p) => p.id === senderJid);
-              const isAdmin = participant?.admin === "admin" || participant?.admin === "superadmin";
-              const isOwner = global.owner.some((o) => o[0] === senderNum);
-              if (!isAdmin && !isOwner) {
-                await subSock.sendMessage(from, { delete: m.key });
-                await subSock.sendMessage(from, {
-                  text: `⚠️ @${senderNum} envió un enlace de grupo y fue eliminado.`,
-                  mentions: [senderJid],
-                });
-                await subSock.groupParticipantsUpdate(from, [senderJid], "remove");
-                return;
-              }
-            } catch (err) {
-              console.error("❌ Error procesando antilink:", err);
+            const prefixPath = path.join(__dirname, "prefixes.json");
+            let dataPrefijos = {};
+            if (fs.existsSync(prefixPath)) {
+              dataPrefijos = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
             }
-          }
 
-          const modoAdminsActivo = activossubbots.modoadmins?.[subbotID]?.[from];
-          if (modoAdminsActivo) {
-            try {
-              const metadata = await subSock.groupMetadata(from);
-              const participante = metadata.participants.find((p) => p.id === senderJid);
-              const isAdmin =
-                participante?.admin === "admin" || participante?.admin === "superadmin";
-              const isOwner = global.owner.some(([id]) => id === senderNum);
-              const isBot = botNum === senderNum;
-              if (!isAdmin && !isOwner && !isBot) return;
-            } catch (err) {
-              console.error("❌ Error en verificación de modo admins:", err);
-              return;
-            }
-          }
-        }
+            const messageText =
+              m.message?.conversation ||
+              m.message?.extendedTextMessage?.text ||
+              m.message?.imageMessage?.caption ||
+              m.message?.videoMessage?.caption ||
+              "";
 
-        const customPrefix = dataPrefijos[subbotID];
-        const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
-        const usedPrefix = allowedPrefixes.find((p) => messageText.startsWith(p));
-        if (!usedPrefix) return;
+/* ========== GUARDADO ANTIDELETE (SUB-BOT) ========== */
+try {
+  const isGroup = from.endsWith("@g.us");
+  const botID   = subSock.user.id.split(":")[0] + "@s.whatsapp.net";
 
-        const body = messageText.slice(usedPrefix.length).trim();
-        const command = body.split(" ")[0].toLowerCase();
-        const args = body.split(" ").slice(1);
-
-        if (isGroup) {
-          const gruposPermitidos = dataGrupos[subbotID] || [];
-          if (senderNum !== botNum && !gruposPermitidos.includes(from) && command !== "addgrupo") {
-            return;
-          }
-        } else if (!isFromSelf) {
-          const listaPermitidos = dataPriv[subbotID] || [];
-          if (!listaPermitidos.includes(senderNum)) {
-            return;
-          }
-        }
-
-        await handleSubCommand(subSock, m, command, args).catch((err) => {
-          console.error("❌ Error ejecutando comando del subbot:", err);
-        });
-      } catch (err) {
-        console.error("❌ Error interno en messages.upsert:", err);
-      }
-    });
-  } catch (err) {
-    console.error(`❌ Error irrecuperable al cargar el subbot ${dir}:`, err);
-    await cleanupSession(sessionPath);
-  }
-}
-
-async function readJsonFile(filePath) {
-  try {
-    if (fsSync.existsSync(filePath)) {
-      const data = await fs.readFile(filePath, "utf-8");
-      return JSON.parse(data);
-    }
-  } catch (e) {
-    console.error(`Error leyendo ${filePath}:`, e);
-  }
-  return {};
-}
-
-async function handleAntiDelete(subSock, m, from, isGroup) {
-  const botID = `${subSock.user.id.split(":")[0]}@s.whatsapp.net`;
   const cfgFile = "./activossu.json";
-  const cfg = await readJsonFile(cfgFile);
+  const cfg     = fs.existsSync(cfgFile) ? JSON.parse(fs.readFileSync(cfgFile,"utf8")) : {};
 
-  if (m.message?.protocolMessage?.type === 0) {
-    try {
-      const delId = m.message.protocolMessage.key.id;
-      const whoDel =
-        m.message.protocolMessage.key.participant || m.key.participant || m.key.remoteJid;
-      const adGroup = cfg.antidelete?.[botID]?.[from] === true;
-      const adPriv = cfg.antideletepri?.[botID] === true;
-      if (!((isGroup && adGroup) || (!isGroup && adPriv))) return;
+  const adGroup = cfg.antidelete?.[botID]?.[from] === true;
+  const adPriv  = cfg.antideletepri?.[botID] === true;
+  if ((isGroup && !adGroup) || (!isGroup && !adPriv)) {/* off */} else {
 
-      const storeFile = isGroup ? "./gruposu.json" : "./prisu.json";
-      const db = await readJsonFile(storeFile);
-      const dat = db[delId];
-      if (!dat || (dat.sender || "").split("@")[0] !== whoDel.split("@")[0]) return;
+    const store   = isGroup ? "./gruposu.json" : "./prisu.json";
+    if (!fs.existsSync(store)) fs.writeFileSync(store,"{}");
 
-      if (isGroup) {
-        const grp = await subSock.groupMetadata(from);
-        const adm = grp.participants.find((p) => p.id === whoDel)?.admin;
-        if (adm) return;
+    const type    = Object.keys(m.message || {})[0];
+    const content = m.message[type];
+    const msgId   = m.key.id;
+
+    /* quién envió */
+    const senderId  = m.key.participant || (m.key.fromMe ? botID : m.key.remoteJid);
+
+    /* límite 8 MB */
+    const bigMedia = ["imageMessage","videoMessage","audioMessage","documentMessage","stickerMessage"];
+    const sizeOk   = !(bigMedia.includes(type)) || (content.fileLength ?? 0) <= 8*1024*1024;
+    if (!sizeOk) { /* demasiado grande; no se guarda */ } else {
+
+      const reg = { chatId: from, sender: senderId, type, timestamp: Date.now() };
+
+      const save64 = async (medType, data) => {
+        const stream = await downloadContentFromMessage(data, medType);
+        let buff = Buffer.alloc(0);
+        for await (const ch of stream) buff = Buffer.concat([buff, ch]);
+        reg.media    = buff.toString("base64");
+        reg.mimetype = data.mimetype;
+      };
+
+      if (m.message?.viewOnceMessageV2) {
+        const inner   = m.message.viewOnceMessageV2.message;
+        const iType   = Object.keys(inner)[0];
+        await save64(iType.replace("Message",""), inner[iType]);
+        reg.type = iType;
+      } else if (bigMedia.includes(type)) {
+        await save64(type.replace("Message",""), content);
+      } else {
+        reg.text = m.message.conversation || m.message.extendedTextMessage?.text || "";
       }
 
-      const mention = [`${whoDel.split("@")[0]}@s.whatsapp.net`];
-      if (dat.media) {
-        const buf = Buffer.from(dat.media, "base64");
-        const tp = dat.type.replace("Message", "");
-        const opts = { [tp]: buf, mimetype: dat.mimetype, quoted: m };
-        const sent = await subSock.sendMessage(from, opts);
-        const caption =
-          tp === "sticker"
-            ? "📌 El sticker fue eliminado por @"
-            : tp === "audio"
-              ? "🎧 El audio fue eliminado por @"
-              : "📦 Mensaje eliminado por @";
-        await subSock.sendMessage(from, {
-          text: `${caption}${whoDel.split("@")[0]}`,
-          mentions: mention,
-          quoted: sent,
-        });
-      } else if (dat.text) {
-        await subSock.sendMessage(
-          from,
-          {
-            text: `📝 *Mensaje eliminado:* ${dat.text}\n👤 *Usuario:* @${whoDel.split("@")[0]}`,
-            mentions: mention,
-          },
-          { quoted: m },
-        );
-      }
-    } catch (e) {
-      console.error("❌ Antidelete-restore:", e);
+      const db = JSON.parse(fs.readFileSync(store,"utf8"));
+      db[msgId] = reg;
+      fs.writeFileSync(store, JSON.stringify(db,null,2));
     }
+  }
+} catch(e){ console.error("❌ Antidelete-save:", e); }
+/* ========== FIN GUARDADO ========== */
+
+
+
+/* ========== DETECCIÓN Y REPOSICIÓN ========== */
+if (m.message?.protocolMessage?.type === 0) {
+  try {
+    const delId   = m.message.protocolMessage.key.id;
+    const whoDel  = m.message.protocolMessage.key.participant || senderJid;
+    const isGroup = from.endsWith("@g.us");
+    const botID   = subSock.user.id.split(":")[0] + "@s.whatsapp.net";
+
+    const cfgFile = "./activossu.json";
+    const cfg     = fs.existsSync(cfgFile) ? JSON.parse(fs.readFileSync(cfgFile,"utf8")) : {};
+    const adGroup = cfg.antidelete?.[botID]?.[from] === true;
+    const adPriv  = cfg.antideletepri?.[botID] === true;
+    if ((isGroup && !adGroup) || (!isGroup && !adPriv)) return;
+
+    const store = isGroup ? "./gruposu.json" : "./prisu.json";
+    if (!fs.existsSync(store)) return;
+
+    const db   = JSON.parse(fs.readFileSync(store,"utf8"));
+    const dat  = db[delId];   if (!dat) return;
+
+    /* sólo si autor = quien borró */
+    if ((dat.sender||"").split("@")[0] !== whoDel.split("@")[0]) return;
+
+    /* omite si era admin borrando en grupo */
+    if (isGroup) {
+      const grp = await subSock.groupMetadata(from);
+      const adm = grp.participants.find(p=>p.id===whoDel)?.admin;
+      if (adm) return;
+    }
+
+    const mention = [`${whoDel.split("@")[0]}@s.whatsapp.net`];
+
+    if (dat.media) {
+      const buf = Buffer.from(dat.media,"base64");
+      const tp  = dat.type.replace("Message","");
+      const opts = { [tp]: buf, mimetype: dat.mimetype, quoted: m };
+
+      const sent = await subSock.sendMessage(from, opts);
+      const caption = tp === "sticker" ? "📌 El sticker fue eliminado por @" :
+                      tp === "audio"   ? "🎧 El audio fue eliminado por @" :
+                                         "📦 Mensaje eliminado por @";
+      await subSock.sendMessage(from, {
+        text: `${caption}${whoDel.split("@")[0]}`,
+        mentions: mention,
+        quoted: sent
+      });
+    } else if (dat.text) {
+      await subSock.sendMessage(from, {
+        text: `📝 *Mensaje eliminado:* ${dat.text}\n👤 *Usuario:* @${whoDel.split("@")[0]}`,
+        mentions: mention
+      }, { quoted: m });
+    }
+  } catch(e){ console.error("❌ Antidelete-restore:", e); }
+}
+/* ========== FIN DETECCIÓN/REPOSICIÓN ========== */
+            
+            // === LÓGICA ANTILINK AUTOMÁTICO SOLO WHATSAPP POR SUBBOT ===
+if (isGroup && !isFromSelf) {
+  const activossubPath = path.resolve("./activossubbots.json");
+  let dataActivados = {};
+
+  if (fs.existsSync(activossubPath)) {
+    dataActivados = JSON.parse(fs.readFileSync(activossubPath, "utf-8"));
+  }
+
+  const subbotID = subSock.user?.id || "";
+  const antilinkActivo = dataActivados.antilink?.[subbotID]?.[from];
+  const contieneLinkWhatsApp = /https:\/\/chat\.whatsapp\.com\//i.test(messageText);
+
+  if (antilinkActivo && contieneLinkWhatsApp) {
+    try {
+      const metadata = await subSock.groupMetadata(from);
+      const participant = metadata.participants.find(p => p.id === senderJid);
+      const isAdmin = participant?.admin === "admin" || participant?.admin === "superadmin";
+      const isOwner = global.owner.some(o => o[0] === senderNum);
+
+      if (!isAdmin && !isOwner) {
+        await subSock.sendMessage(from, { delete: m.key });
+
+        await subSock.sendMessage(from, {
+          text: `⚠️ @${senderNum} envió un enlace de grupo de WhatsApp y fue eliminado.`,
+          mentions: [senderJid]
+        });
+
+        await subSock.groupParticipantsUpdate(from, [senderJid], "remove");
+      }
+    } catch (err) {
+      console.error("❌ Error procesando antilink:", err);
+    }
+  }
+}
+// === FIN LÓGICA ANTILINK ===
+// === INICIO LÓGICA MODOADMINS SUBBOT ===
+if (isGroup && !isFromSelf) {
+  try {
+    const activossubPath = path.resolve("./activossubbots.json");
+    if (!fs.existsSync(activossubPath)) return;
+
+    const dataActivados = JSON.parse(fs.readFileSync(activossubPath, "utf-8"));
+    
+    // Obtener subbotID en el formato correcto
+    const subbotID = subSock.user?.id || ""; // ejemplo: 15167096032:20@s.whatsapp.net
+    const modoAdminsActivo = dataActivados.modoadmins?.[subbotID]?.[from];
+
+    if (modoAdminsActivo) {
+      const metadata = await subSock.groupMetadata(from);
+      const participante = metadata.participants.find(p => p.id === senderJid);
+      const isAdmin = participante?.admin === "admin" || participante?.admin === "superadmin";
+
+      const botNum = subSock.user?.id.split(":")[0].replace(/[^0-9]/g, "");
+      const isBot = botNum === senderNum;
+
+      const isOwner = global.owner.some(([id]) => id === senderNum);
+
+      if (!isAdmin && !isOwner && !isBot) {
+        return;
+      }
+    }
+  } catch (err) {
+    console.error("❌ Error en verificación de modo admins:", err);
     return;
   }
-
+}
+// === FIN LÓGICA MODOADMINS SUBBOT ===
+  
+// === INICIO LÓGICA GRUPO AUTORIZADO ===
+if (isGroup) {
   try {
-    const adGroup = cfg.antidelete?.[botID]?.[from] === true;
-    const adPriv = cfg.antideletepri?.[botID] === true;
-    if (!((isGroup && adGroup) || (!isGroup && adPriv))) return;
+    const grupoPath = path.resolve("./grupo.json");
+    const prefixPath = path.resolve("./prefixes.json");
 
-    const storeFile = isGroup ? "./gruposu.json" : "./prisu.json";
-    const type = Object.keys(m.message || {})[0];
-    const content = m.message[type];
-    if (
-      [
-        "imageMessage",
-        "videoMessage",
-        "audioMessage",
-        "documentMessage",
-        "stickerMessage",
-      ].includes(type) &&
-      (content.fileLength ?? 0) > 8 * 1024 * 1024
-    )
-      return;
+    const rawID = subSock.user?.id || "";
+    const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
+    const botNum = rawID.split(":")[0].replace(/[^0-9]/g, "");
 
-    const reg = {
-      chatId: from,
-      sender: m.key.participant || (m.key.fromMe ? botID : m.key.remoteJid),
-      type,
-      timestamp: Date.now(),
-    };
-    const save64 = async (medType, data) => {
-      const stream = await downloadContentFromMessage(data, medType);
-      let buff = Buffer.alloc(0);
-      for await (const ch of stream) buff = Buffer.concat([buff, ch]);
-      reg.media = buff.toString("base64");
-      reg.mimetype = data.mimetype;
-    };
+    // Obtener el texto completo del mensaje
+    const messageText =
+      m.message?.conversation ||
+      m.message?.extendedTextMessage?.text ||
+      m.message?.imageMessage?.caption ||
+      m.message?.videoMessage?.caption ||
+      "";
 
-    if (m.message?.viewOnceMessageV2) {
-      const inner = m.message.viewOnceMessageV2.message;
-      const iType = Object.keys(inner)[0];
-      await save64(iType.replace("Message", ""), inner[iType]);
-      reg.type = iType;
-    } else if (
-      [
-        "imageMessage",
-        "videoMessage",
-        "audioMessage",
-        "documentMessage",
-        "stickerMessage",
-      ].includes(type)
-    ) {
-      await save64(type.replace("Message", ""), content);
-    } else {
-      reg.text = m.message.conversation || m.message.extendedTextMessage?.text || "";
+    // Leer el prefijo personalizado
+    let dataPrefijos = {};
+    try {
+      if (fs.existsSync(prefixPath)) {
+        dataPrefijos = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
+      }
+    } catch (_) {}
+
+    const customPrefix = dataPrefijos[subbotID];
+    const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
+    const usedPrefix = allowedPrefixes.find(p => messageText.startsWith(p));
+    if (!usedPrefix) return; // No tiene prefijo válido
+
+    const body = messageText.slice(usedPrefix.length).trim();
+    const command = body.split(" ")[0].toLowerCase();
+
+    const allowedCommands = ['addgrupo']; // Comando permitido aún si no está autorizado el grupo
+
+    let dataGrupos = {};
+    if (fs.existsSync(grupoPath)) {
+      dataGrupos = JSON.parse(fs.readFileSync(grupoPath, "utf-8"));
     }
 
-    const db = await readJsonFile(storeFile);
-    db[m.key.id] = reg;
-    await fs.writeFile(storeFile, JSON.stringify(db, null, 2));
-  } catch (e) {
-    console.error("❌ Antidelete-save:", e);
+    const gruposPermitidos = Array.isArray(dataGrupos[subbotID]) ? dataGrupos[subbotID] : [];
+
+    // ⚠️ Solo bloquear si NO es el subbot hablando
+    if (senderNum !== botNum && !gruposPermitidos.includes(from) && !allowedCommands.includes(command)) {
+      return; // Otro usuario y grupo no autorizado
+    }
+
+  } catch (err) {
+    console.error("❌ Error en verificación de grupo autorizado:", err);
+    return;
+  }
+}
+// === FIN LÓGICA GRUPO AUTORIZADO ===
+// === INICIO LÓGICA PRIVADO AUTORIZADO ===
+if (!isGroup) {
+  const isFromSelf = m.key.fromMe;
+  const rawID = subSock.user?.id || "";
+  const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
+
+  if (!isFromSelf) {
+    const listaPath = path.join(__dirname, "listasubots.json");
+    let dataPriv = {};
+
+    try {
+      if (fs.existsSync(listaPath)) {
+        dataPriv = JSON.parse(fs.readFileSync(listaPath, "utf-8"));
+      }
+    } catch (e) {
+      console.error("❌ Error leyendo listasubots.json:", e);
+    }
+
+    const listaPermitidos = Array.isArray(dataPriv[subbotID]) ? dataPriv[subbotID] : [];
+
+    if (!listaPermitidos.includes(senderNum)) {
+      return; // 🚫 Usuario no autorizado, ignorar mensaje privado
+    }
+  }
+}
+// === FIN LÓGICA PRIVADO AUTORIZADO ===
+            
+            const customPrefix = dataPrefijos[subbotID];
+            const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
+            const usedPrefix = allowedPrefixes.find(p => messageText.startsWith(p));
+            if (!usedPrefix) return;
+
+            const body = messageText.slice(usedPrefix.length).trim();
+            const command = body.split(" ")[0].toLowerCase();
+            const args = body.split(" ").slice(1);
+
+            await handleSubCommand(subSock, m, command, args).catch(err => {
+              console.error("❌ Error ejecutando comando del subbot:", err);
+            });
+          } catch (err) {
+            console.error("❌ Error interno en mensajes.upsert:", err);
+          }
+        });
+    
+  } catch (err) {
+    console.error(`❌ Error cargando subbot ${dir}:`, err);
   }
 }
 
+/* ─── Carga inicial al arrancar ─────────────────────────── */
 async function cargarSubbots() {
   const base = path.resolve(__dirname, "subbots");
-  if (!fsSync.existsSync(base)) {
-    fsSync.mkdirSync(base, { recursive: true });
+  if (!fs.existsSync(base)) {
+    fs.mkdirSync(base, { recursive: true });
     console.log("📁 Carpeta ./subbots creada automáticamente.");
   }
 
-  const dirs = fsSync
-    .readdirSync(base)
-    .filter((d) => fsSync.existsSync(path.join(base, d, "creds.json")));
+  const dirs = fs.readdirSync(base)
+    .filter(d => fs.existsSync(path.join(base, d, "creds.json")));
 
-  console.log(`🤖 Cargando ${dirs.length} subbot(s) existentes...`);
-  for (const d of dirs) {
-    await iniciarSubbot(path.join(base, d)).catch((e) => console.error(`Fallo al cargar ${d}:`, e));
-  }
+  console.log(`🤖 Cargando ${dirs.length} subbot(s) conectados…`);
+  for (const d of dirs) await iniciarSubbot(path.join(base, d));
 }
 
 /* ─── Ejecución inmediata ──────────────────────────────── */
