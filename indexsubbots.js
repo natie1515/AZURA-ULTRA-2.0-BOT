@@ -583,4 +583,4 @@ async function cargarSubbots() {
 cargarSubbots();
 
 /* ─── Exportaciones ─────────────────────────────────────── */
-module.exports = { cargarSubbots, iniciarSubbot };
+module.exports = { iniciarSubbot };
