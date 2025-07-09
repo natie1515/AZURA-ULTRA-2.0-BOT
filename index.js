@@ -1011,6 +1011,68 @@ try {
   console.error("❌ Error al ejecutar comando desde sticker:", err);
 }
 // === FIN LÓGICA COMANDOS DESDE STICKER ===       
+// === LÓGICA DE RESPUESTA AUTOMÁTICA CON PALABRA CLAVE ===
+try {
+  /* ── 1. No responder si el grupo tiene modo Admins activo ───────── */
+  const actPath = path.resolve('./activos.json');
+  if (isGroup && fs.existsSync(actPath)) {
+    const act = JSON.parse(fs.readFileSync(actPath, 'utf-8'));
+    if (act.modoAdmins?.[chatId]) {
+      /* modoAdmins encendido → salimos sin responder */
+      // console.log('[guar] modoAdmins activo; omitiendo respuesta');
+      return;
+    }
+  }
+  /* ── 2. Procesar la tabla de palabras clave ────────────────────── */
+  const guarPath = path.resolve('./guar.json');
+  if (fs.existsSync(guarPath)) {
+    const guarData = JSON.parse(fs.readFileSync(guarPath, 'utf-8'));
+
+    /* normaliza el texto entrante */
+    const cleanText = messageText
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w]/g, '');
+
+    /* recorre las claves */
+    for (const key of Object.keys(guarData)) {
+      const cleanKey = key
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\w]/g, '');
+
+      if (cleanText === cleanKey) {
+        const item   = guarData[key];
+        const buffer = Buffer.from(item.buffer, 'base64');
+        const payload = {};
+
+        switch (item.extension) {
+          case 'jpg':
+          case 'jpeg':
+          case 'png':  payload.image  = buffer; break;
+          case 'mp4':  payload.video  = buffer; break;
+          case 'mp3':
+          case 'ogg':
+          case 'opus': payload.audio    = buffer;
+                       payload.mimetype = item.mimetype || 'audio/mpeg';
+                       payload.ptt      = false;               break;
+          case 'webp': payload.sticker = buffer; break;
+          default:     payload.document = buffer;
+                       payload.mimetype = item.mimetype || "application/octet-stream";
+                       payload.fileName = `archivo.${item.extension}`;
+                       break;
+        }
+
+        await sock.sendMessage(chatId, payload, { quoted: msg });
+        return;   // se encontró coincidencia
+      }
+    }
+  }
+} catch (e) {
+  console.error("❌ Error al revisar guar.json / activos.json:", e);
+}
+// === FIN LÓGICA DE RESPUESTA AUTOMÁTICA CON PALABRA CLAVE ===    
+
     
 // === INICIO BLOQUEO DE MENSAJES DE USUARIOS MUTEADOS ===
 try {
@@ -1150,66 +1212,6 @@ try {
       // 🔒 En privado si no es de la lista, no responde
       if (!isGroup && !fromMe && !isOwner(sender) && !isAllowedUser(sender)) return;
     }
-// === LÓGICA DE RESPUESTA AUTOMÁTICA CON PALABRA CLAVE ===
-try {
-  const guarPath = path.resolve('./guar.json');
-  if (fs.existsSync(guarPath)) {
-    const guarData = JSON.parse(fs.readFileSync(guarPath, 'utf-8'));
-
-    /* prefijos de comando que NO deben activar la respuesta */
-    const cmdPrefixes = ['.', '#', '!', '/', '?'];
-    const firstChar   = messageText.trim().charAt(0);
-
-    /* solo buscamos coincidencia si NO empieza con un prefijo */
-    if (!cmdPrefixes.includes(firstChar)) {
-
-      // — normaliza texto —
-      const cleanText = messageText
-        .toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^\w]/g, '');
-
-      // — recorre las claves guardadas —
-      for (const key of Object.keys(guarData)) {
-        const cleanKey = key
-          .toLowerCase()
-          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^\w]/g, '');
-
-        if (cleanText === cleanKey) {
-          const item   = guarData[key];
-          const buffer = Buffer.from(item.buffer, 'base64');
-          const payload = {};
-
-          switch (item.extension) {
-            case 'jpg':
-            case 'jpeg':
-            case 'png':  payload.image  = buffer; break;
-            case 'mp4':  payload.video  = buffer; break;
-            case 'mp3':
-            case 'ogg':
-            case 'opus': payload.audio  = buffer;
-                         payload.mimetype = item.mimetype || 'audio/mpeg';
-                         payload.ptt      = false;               break;
-            case 'webp': payload.sticker = buffer;               break;
-            default:     payload.document = buffer;
-                         payload.mimetype = item.mimetype || 'application/octet-stream';
-                         payload.fileName = `archivo.${item.extension}`;
-                         break;
-          }
-
-          await sock.sendMessage(chatId, payload, { quoted: msg });
-          return;   // salimos: ya respondió a la palabra clave
-        }
-      }
-    }
-    /* si era un comando, simplemente se salta este bloque y
-       el flujo continúa para que el comando se procese */
-  }
-} catch (e) {
-  console.error("❌ Error al revisar guar.json:", e);
-}
-// === FIN LÓGICA DE RESPUESTA AUTOMÁTICA CON PALABRA CLAVE ===
 
 // === INICIO BLOQUEO DE COMANDOS SI EL BOT ESTÁ APAGADO EN EL GRUPO ===
 try {
