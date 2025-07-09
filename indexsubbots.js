@@ -11,7 +11,7 @@ const {
 } = require("@whiskeysockets/baileys");
 const { Boom } = require("@hapi/boom");
 
-const subBots = new WeakMap();
+const subBots = [];
 
 function loadSubPlugins() {
   const out = [];
@@ -43,10 +43,10 @@ async function handleSubCommand(sock, msg, command, args) {
 }
 
 async function iniciarSubBot(sessionPath) {
-  if (subBots.has(sessionPath)) {
+  if (subBots.includes(sessionPath)) {
     return;
   }
-  subBots.set(sessionPath, true);
+  subBots.push(sessionPath);
   if (!fs.existsSync(sessionPath)) {
     return;
   }
@@ -87,11 +87,17 @@ async function iniciarSubBot(sessionPath) {
         DisconnectReason.forbidden,
       ].includes(statusCode);
       if (!isFatalError) {
-        subBots.delete(sessionPath);
+        const index = subBots.indexOf(sessionPath);
+        if (index !== -1) {
+          subBots.splice(index, 1);
+        }
         await iniciarSubBot(sessionPath);
       } else {
         console.log(`❌ No se pudo reconectar con el bot ${dir}.`);
-        subBots.delete(sessionPath);
+        const index = subBots.indexOf(sessionPath);
+        if (index !== -1) {
+          subBots.splice(index, 1);
+        }
         fs.rmSync(sessionPath, { recursive: true, force: true });
       }
     }

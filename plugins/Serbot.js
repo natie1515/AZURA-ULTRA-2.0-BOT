@@ -29,7 +29,7 @@ const handler = async (msg, { conn, command, sock }) => {
       const sessionDir = path.join(__dirname, "../subbots");
       const sessionPath = path.join(sessionDir, number);
       const rid = number.split("@")[0];
-      if (subBots.has(sessionPath)) {
+      if (subBots.includes(sessionPath)) {
         return await conn.sendMessage(
           msg.key.remoteJid,
           {
@@ -39,7 +39,7 @@ const handler = async (msg, { conn, command, sock }) => {
         );
       }
 
-      subBots.set(sessionPath, true);
+      subBots.push(sessionPath);
 
       /* ───────── VERIFICACIÓN DE LÍMITE ───────── */
       if (!fs.existsSync(sessionDir)) {
@@ -221,7 +221,10 @@ Después deberás usar ese nuevo prefijo para activar comandos.
           ].includes(statusCode);
           if (!isFatalError) {
             if (reconnectionAttempts >= maxReconnectionAttempts) {
-              subBots.delete(sessionPath);
+              const index = subBots.indexOf(sessionPath);
+              if (index !== -1) {
+                subBots.splice(index, 1);
+              }
               fs.rmSync(sessionPath, { recursive: true, force: true });
               return await conn.sendMessage(
                 msg.key.remoteJid,
@@ -250,7 +253,10 @@ Después deberás usar ese nuevo prefijo para activar comandos.
               },
               { quoted: msg },
             );
-            subBots.delete(sessionPath);
+            const index = subBots.indexOf(sessionPath);
+            if (index !== -1) {
+              subBots.splice(index, 1);
+            }
             await iniciarSubBot(sessionPath);
           } else {
             console.log(`❌ No se pudo reconectar con el bot ${sessionPath}.`);
@@ -261,7 +267,10 @@ Después deberás usar ese nuevo prefijo para activar comandos.
               },
               { quoted: msg },
             );
-            subBots.delete(sessionPath);
+            const index = subBots.indexOf(sessionPath);
+            if (index !== -1) {
+              subBots.splice(index, 1);
+            }
             fs.rmSync(sessionPath, { recursive: true, force: true });
           }
         }
