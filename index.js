@@ -1156,58 +1156,55 @@ try {
   if (fs.existsSync(guarPath)) {
     const guarData = JSON.parse(fs.readFileSync(guarPath, 'utf-8'));
 
-    /* 🆕  ignora si el mensaje empieza con un prefijo de comando */
-    const firstChar = messageText.trim().charAt(0);
-    if (['.', '#', '!', '/', '?'].includes(firstChar)) return;
+    /* prefijos de comando que NO deben activar la respuesta */
+    const cmdPrefixes = ['.', '#', '!', '/', '?'];
+    const firstChar   = messageText.trim().charAt(0);
 
-    /* normaliza el texto entrante */
-    const cleanText = messageText
-      .toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^\w]/g, '');
+    /* solo buscamos coincidencia si NO empieza con un prefijo */
+    if (!cmdPrefixes.includes(firstChar)) {
 
-    /* recorre las claves almacenadas */
-    for (const key of Object.keys(guarData)) {
-      const cleanKey = key
+      // — normaliza texto —
+      const cleanText = messageText
         .toLowerCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^\w]/g, '');
 
-      if (cleanText === cleanKey) {
-        const item   = guarData[key];
-        const buffer = Buffer.from(item.buffer, 'base64');
-        const payload = {};
+      // — recorre las claves guardadas —
+      for (const key of Object.keys(guarData)) {
+        const cleanKey = key
+          .toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^\w]/g, '');
 
-        switch (item.extension) {
-          case 'jpg':
-          case 'jpeg':
-          case 'png':
-            payload.image = buffer;
-            break;
-          case 'mp4':
-            payload.video = buffer;
-            break;
-          case 'mp3':
-          case 'ogg':
-          case 'opus':
-            payload.audio    = buffer;
-            payload.mimetype = item.mimetype || 'audio/mpeg';
-            payload.ptt      = false;               // nota de voz → true
-            break;
-          case 'webp':
-            payload.sticker = buffer;
-            break;
-          default:
-            payload.document  = buffer;
-            payload.mimetype  = item.mimetype || 'application/octet-stream';
-            payload.fileName  = `archivo.${item.extension}`;
-            break;
+        if (cleanText === cleanKey) {
+          const item   = guarData[key];
+          const buffer = Buffer.from(item.buffer, 'base64');
+          const payload = {};
+
+          switch (item.extension) {
+            case 'jpg':
+            case 'jpeg':
+            case 'png':  payload.image  = buffer; break;
+            case 'mp4':  payload.video  = buffer; break;
+            case 'mp3':
+            case 'ogg':
+            case 'opus': payload.audio  = buffer;
+                         payload.mimetype = item.mimetype || 'audio/mpeg';
+                         payload.ptt      = false;               break;
+            case 'webp': payload.sticker = buffer;               break;
+            default:     payload.document = buffer;
+                         payload.mimetype = item.mimetype || 'application/octet-stream';
+                         payload.fileName = `archivo.${item.extension}`;
+                         break;
+          }
+
+          await sock.sendMessage(chatId, payload, { quoted: msg });
+          return;   // salimos: ya respondió a la palabra clave
         }
-
-        await sock.sendMessage(chatId, payload, { quoted: msg });
-        return;        // sale tras la coincidencia
       }
     }
+    /* si era un comando, simplemente se salta este bloque y
+       el flujo continúa para que el comando se procese */
   }
 } catch (e) {
   console.error("❌ Error al revisar guar.json:", e);
