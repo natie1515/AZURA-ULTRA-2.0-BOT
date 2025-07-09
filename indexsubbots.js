@@ -494,4 +494,4 @@ async function cargarSubBots() {
   await Promise.all(dirs.map((d) => iniciarSubBot(path.join(base, d))));
 }
 
-module.exports = { subBots, cargarSubBots, socketEvents };
+module.exports = { subBots, cargarSubBots, socketEvents, iniciarSubBot };
