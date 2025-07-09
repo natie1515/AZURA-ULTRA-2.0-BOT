@@ -29,6 +29,17 @@ const handler = async (msg, { conn, command, sock }) => {
       const sessionDir = path.join(__dirname, "../subbots");
       const sessionPath = path.join(sessionDir, number);
       const rid = number.split("@")[0];
+      if (subBots.has(sessionPath)) {
+        return await conn.sendMessage(
+          msg.key.remoteJid,
+          {
+            text: "ℹ️ Ese subbot ya existe.",
+          },
+          { quoted: msg },
+        );
+      }
+
+      subBots.set(sessionPath);
 
       /* ───────── VERIFICACIÓN DE LÍMITE ───────── */
       if (!fs.existsSync(sessionDir)) {
@@ -116,7 +127,6 @@ const handler = async (msg, { conn, command, sock }) => {
         }
 
         if (connection === "open") {
-          subBots.set(sessionPath);
           await conn.sendMessage(
             msg.key.remoteJid,
             {
