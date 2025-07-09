@@ -46,7 +46,7 @@ async function iniciarSubBot(sessionPath) {
   if (subBots.has(sessionPath)) {
     return;
   }
-  subBots.set(sessionPath);
+  subBots.set(sessionPath, true);
   if (!fs.existsSync(sessionPath)) {
     return;
   }
