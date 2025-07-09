@@ -2,7 +2,7 @@
    • Verifica cada carpeta de sesión en ./subbots/
    • Si la credencial se conecta ⇒ la mantiene y la añade a “reconectados”
    • Si no se conecta en ≤ 10 s ⇒ elimina la carpeta y la añade a “eliminados”
-   • Al terminar llama  cargarSubbots()  para que el sistema vuelva a leer
+   • Al terminar llama  cargarSubBots()  para que el sistema vuelva a leer
      todo desde cero (igual que hace serbot.js cuando crea una sesión nueva)
 *****************************************************************************/
 const fs   = require("fs");
@@ -17,7 +17,7 @@ const {
 } = require("@whiskeysockets/baileys");
 
 /* función del sistema de sub-bots */
-const { cargarSubbots } = require("../indexsubbots");
+const { cargarSubBots } = require("../indexsubbots");
 
 module.exports = async (msg, { conn, args }) => {
   /* ── Sólo owners o el propio bot ───────────────────────── */
@@ -99,7 +99,7 @@ module.exports = async (msg, { conn, args }) => {
   await conn.sendMessage(msg.key.remoteJid,{ text },{ quoted:msg });
 
   /* ── Re-carga todo el sistema de sub-bots ─────────────── */
-  try { await cargarSubbots(); } catch(e){ console.error(e); }
+  try { await cargarSubBots(); } catch(e){ console.error(e); }
 
   await conn.sendMessage(msg.key.remoteJid,
     { react:{ text:"✅", key:msg.key } });
