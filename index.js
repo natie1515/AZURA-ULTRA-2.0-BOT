@@ -1123,7 +1123,8 @@ try {
   console.error("❌ Error procesando bloqueo de usuarios baneados:", e);
 }
 // === FIN BLOQUEO DE COMANDOS A USUARIOS BANEADOS ===    
-    
+Hola ayudame con este codigo lo que pasa es que la logica de respuesta de multimedia con palabra clave anda respondiendo a los multimedia cuando pones de primero un .mas la palabra clave y lo envia cuando no deberia de enviarlo porque esta en modo admins. Y cuando se escribe la palabra normal estando en modo admins no envia nada se debe poner el . Para enviarlo cuando no debria de ser asi. Deberia de responder al la palabra clave sin en punto. Y tanto en modoadmins no deberia responderle a nadie mas que la los admins del grupo. Si el bot esta en modo privado aii si nama le debe responder a isowner 
+
 // 🔐 Modo Privado activado
     if (activos.modoPrivado) {
       if (isGroup) {
@@ -1156,6 +1157,10 @@ try {
   if (fs.existsSync(guarPath)) {
     const guarData = JSON.parse(fs.readFileSync(guarPath, 'utf-8'));
 
+    /* 🆕— ignora si empieza con prefijo de comando —*/
+    const first = messageText.trim().charAt(0);
+    if (['.', '#', '!', '/', '?'].includes(first)) return;
+
     // Normalizar mensaje: sin espacios, tildes, mayúsculas ni símbolos
     const cleanText = messageText
       .toLowerCase()
@@ -1169,39 +1174,29 @@ try {
         .replace(/[^\w]/g, '');
 
       if (cleanText === cleanKey) {
-        const item = guarData[key];
+        const item   = guarData[key];
         const buffer = Buffer.from(item.buffer, 'base64');
 
         let payload = {};
-
         switch (item.extension) {
           case 'jpg':
           case 'jpeg':
-          case 'png':
-            payload.image = buffer;
-            break;
-          case 'mp4':
-            payload.video = buffer;
-            break;
+          case 'png':    payload.image   = buffer;               break;
+          case 'mp4':    payload.video   = buffer;               break;
           case 'mp3':
           case 'ogg':
-          case 'opus':
-            payload.audio = buffer;
-            payload.mimetype = item.mimetype || 'audio/mpeg';
-            payload.ptt = false; // ← Cambia a true si quieres que lo envíe como nota de voz
-            break;
-          case 'webp':
-            payload.sticker = buffer;
-            break;
-          default:
-            payload.document = buffer;
-            payload.mimetype = item.mimetype || "application/octet-stream";
-            payload.fileName = `archivo.${item.extension}`;
-            break;
+          case 'opus':   payload.audio   = buffer;
+                         payload.mimetype = item.mimetype || 'audio/mpeg';
+                         payload.ptt      = false;               break;
+          case 'webp':   payload.sticker = buffer;               break;
+          default:       payload.document = buffer;
+                         payload.mimetype = item.mimetype || 'application/octet-stream';
+                         payload.fileName = `archivo.${item.extension}`;
+                         break;
         }
 
         await sock.sendMessage(chatId, payload, { quoted: msg });
-        return; // ← evitar que siga procesando si ya se encontró una coincidencia
+        return;       // ← sale tras la coincidencia
       }
     }
   }
@@ -1209,7 +1204,8 @@ try {
   console.error("❌ Error al revisar guar.json:", e);
 }
 // === FIN LÓGICA DE RESPUESTA AUTOMÁTICA CON PALABRA CLAVE ===
-    
+        
+
 // === INICIO BLOQUEO DE COMANDOS SI EL BOT ESTÁ APAGADO EN EL GRUPO ===
 try {
   const activosPath = "./activos.json";
