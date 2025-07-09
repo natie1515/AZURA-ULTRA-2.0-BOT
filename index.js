@@ -818,65 +818,7 @@ if (msg.message?.protocolMessage?.type === 0) {
 }
 // === FIN DETECCIÓN DE MENSAJE ELIMINADO ===    
     
-// === LÓGICA DE RESPUESTA AUTOMÁTICA CON PALABRA CLAVE ===
-try {
-  const guarPath = path.resolve('./guar.json');
-  if (fs.existsSync(guarPath)) {
-    const guarData = JSON.parse(fs.readFileSync(guarPath, 'utf-8'));
 
-    // Normalizar mensaje: sin espacios, tildes, mayúsculas ni símbolos
-    const cleanText = messageText
-      .toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^\w]/g, '');
-
-    for (const key of Object.keys(guarData)) {
-      const cleanKey = key
-        .toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^\w]/g, '');
-
-      if (cleanText === cleanKey) {
-        const item = guarData[key];
-        const buffer = Buffer.from(item.buffer, 'base64');
-
-        let payload = {};
-
-        switch (item.extension) {
-          case 'jpg':
-          case 'jpeg':
-          case 'png':
-            payload.image = buffer;
-            break;
-          case 'mp4':
-            payload.video = buffer;
-            break;
-          case 'mp3':
-          case 'ogg':
-          case 'opus':
-            payload.audio = buffer;
-            payload.mimetype = item.mimetype || 'audio/mpeg';
-            payload.ptt = false; // ← Cambia a true si quieres que lo envíe como nota de voz
-            break;
-          case 'webp':
-            payload.sticker = buffer;
-            break;
-          default:
-            payload.document = buffer;
-            payload.mimetype = item.mimetype || "application/octet-stream";
-            payload.fileName = `archivo.${item.extension}`;
-            break;
-        }
-
-        await sock.sendMessage(chatId, payload, { quoted: msg });
-        return; // ← evitar que siga procesando si ya se encontró una coincidencia
-      }
-    }
-  }
-} catch (e) {
-  console.error("❌ Error al revisar guar.json:", e);
-}
-// === FIN LÓGICA DE RESPUESTA AUTOMÁTICA CON PALABRA CLAVE ===
 // === INICIO LÓGICA CHATGPT POR GRUPO ===
 try {
   const activos = fs.existsSync("./activos.json") ? JSON.parse(fs.readFileSync("./activos.json", "utf-8")) : {};
@@ -1208,6 +1150,66 @@ try {
       // 🔒 En privado si no es de la lista, no responde
       if (!isGroup && !fromMe && !isOwner(sender) && !isAllowedUser(sender)) return;
     }
+// === LÓGICA DE RESPUESTA AUTOMÁTICA CON PALABRA CLAVE ===
+try {
+  const guarPath = path.resolve('./guar.json');
+  if (fs.existsSync(guarPath)) {
+    const guarData = JSON.parse(fs.readFileSync(guarPath, 'utf-8'));
+
+    // Normalizar mensaje: sin espacios, tildes, mayúsculas ni símbolos
+    const cleanText = messageText
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w]/g, '');
+
+    for (const key of Object.keys(guarData)) {
+      const cleanKey = key
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\w]/g, '');
+
+      if (cleanText === cleanKey) {
+        const item = guarData[key];
+        const buffer = Buffer.from(item.buffer, 'base64');
+
+        let payload = {};
+
+        switch (item.extension) {
+          case 'jpg':
+          case 'jpeg':
+          case 'png':
+            payload.image = buffer;
+            break;
+          case 'mp4':
+            payload.video = buffer;
+            break;
+          case 'mp3':
+          case 'ogg':
+          case 'opus':
+            payload.audio = buffer;
+            payload.mimetype = item.mimetype || 'audio/mpeg';
+            payload.ptt = false; // ← Cambia a true si quieres que lo envíe como nota de voz
+            break;
+          case 'webp':
+            payload.sticker = buffer;
+            break;
+          default:
+            payload.document = buffer;
+            payload.mimetype = item.mimetype || "application/octet-stream";
+            payload.fileName = `archivo.${item.extension}`;
+            break;
+        }
+
+        await sock.sendMessage(chatId, payload, { quoted: msg });
+        return; // ← evitar que siga procesando si ya se encontró una coincidencia
+      }
+    }
+  }
+} catch (e) {
+  console.error("❌ Error al revisar guar.json:", e);
+}
+// === FIN LÓGICA DE RESPUESTA AUTOMÁTICA CON PALABRA CLAVE ===
+    
 // === INICIO BLOQUEO DE COMANDOS SI EL BOT ESTÁ APAGADO EN EL GRUPO ===
 try {
   const activosPath = "./activos.json";
