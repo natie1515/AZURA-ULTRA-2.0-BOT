@@ -39,7 +39,7 @@ const handler = async (msg, { conn, command, sock }) => {
         );
       }
 
-      subBots.set(sessionPath);
+      subBots.set(sessionPath, true);
 
       /* ───────── VERIFICACIÓN DE LÍMITE ───────── */
       if (!fs.existsSync(sessionDir)) {
