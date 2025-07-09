@@ -1013,24 +1013,34 @@ try {
 // === FIN LÓGICA COMANDOS DESDE STICKER ===       
 // === LÓGICA DE RESPUESTA AUTOMÁTICA CON PALABRA CLAVE ===
 try {
-  /* 1️⃣  Si el grupo tiene modoAdmins activo y el emisor NO es owner   */
-  /*     ni el propio bot, entonces no se responde a la palabra clave. */
-  const actPath = path.resolve('./activos.json');
-  if (isGroup && fs.existsSync(actPath)) {
-    const act = JSON.parse(fs.readFileSync(actPath, 'utf-8'));
-    const modoAdminsOn = act.modoAdmins?.[chatId];
-    const senderIsOwner = isOwner(sender);   // tu helper de siempre
-    if (modoAdminsOn && !senderIsOwner && !fromMe) {
-      // console.log('[guar] modoAdmins activo; ignorando no-owner');
-      return;
+  /* 1️⃣  Filtro “modoAdmins” — se permite a owner, al bot y a los ADMINs del grupo */
+  if (isGroup) {
+    const actPath = path.resolve('./activos.json');
+    const modoAdminsOn =
+      fs.existsSync(actPath) &&
+      (JSON.parse(fs.readFileSync(actPath, 'utf-8')).modoAdmins?.[chatId] === true);
+
+    if (modoAdminsOn) {
+      /* ¿es owner o el propio bot? → pasa */
+      if (!isOwner(sender) && !fromMe) {
+        /* sino, comprobar si es admin del grupo */
+        let isAdmin = false;
+        try {
+          const meta = await sock.groupMetadata(chatId);
+          const p    = meta.participants.find(u => u.id.includes(sender));
+          isAdmin    = p?.admin === 'admin' || p?.admin === 'superadmin';
+        } catch (e) {
+          console.error("❌ Error leyendo metadata:", e);
+        }
+        if (!isAdmin) return;     // modoAdmins activo y no-admin => ignora
+      }
     }
   }
 
-  /* 2️⃣  Procesa la tabla guar.json normalmente si pasó el filtro */
+  /* 2️⃣  Procesar guar.json (igual que antes) */
   const guarPath = path.resolve('./guar.json');
   if (fs.existsSync(guarPath)) {
-    const guarData = JSON.parse(fs.readFileSync(guarPath, 'utf-8'));
-
+    const guarData  = JSON.parse(fs.readFileSync(guarPath, 'utf-8'));
     const cleanText = messageText
       .toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -1056,7 +1066,7 @@ try {
           case 'ogg':
           case 'opus': payload.audio    = buffer;
                        payload.mimetype = item.mimetype || 'audio/mpeg';
-                       payload.ptt      = false;               break;
+                       payload.ptt      = false;                break;
           case 'webp': payload.sticker = buffer; break;
           default:     payload.document = buffer;
                        payload.mimetype = item.mimetype || 'application/octet-stream';
@@ -1065,15 +1075,14 @@ try {
         }
 
         await sock.sendMessage(chatId, payload, { quoted: msg });
-        return;
+        return;   // coincidencia encontrada
       }
     }
   }
 } catch (e) {
-  console.error("❌ Error al revisar guar.json / activos.json:", e);
+  console.error("❌ Error en lógica de palabra clave:", e);
 }
 // === FIN LÓGICA DE RESPUESTA AUTOMÁTICA CON PALABRA CLAVE ===
-
     
 // === INICIO BLOQUEO DE MENSAJES DE USUARIOS MUTEADOS ===
 try {
