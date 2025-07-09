@@ -1123,7 +1123,6 @@ try {
   console.error("❌ Error procesando bloqueo de usuarios baneados:", e);
 }
 // === FIN BLOQUEO DE COMANDOS A USUARIOS BANEADOS ===    
-Hola ayudame con este codigo lo que pasa es que la logica de respuesta de multimedia con palabra clave anda respondiendo a los multimedia cuando pones de primero un .mas la palabra clave y lo envia cuando no deberia de enviarlo porque esta en modo admins. Y cuando se escribe la palabra normal estando en modo admins no envia nada se debe poner el . Para enviarlo cuando no debria de ser asi. Deberia de responder al la palabra clave sin en punto. Y tanto en modoadmins no deberia responderle a nadie mas que la los admins del grupo. Si el bot esta en modo privado aii si nama le debe responder a isowner 
 
 // 🔐 Modo Privado activado
     if (activos.modoPrivado) {
