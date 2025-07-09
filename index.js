@@ -1013,28 +1013,29 @@ try {
 // === FIN LÓGICA COMANDOS DESDE STICKER ===       
 // === LÓGICA DE RESPUESTA AUTOMÁTICA CON PALABRA CLAVE ===
 try {
-  /* ── 1. No responder si el grupo tiene modo Admins activo ───────── */
+  /* 1️⃣  Si el grupo tiene modoAdmins activo y el emisor NO es owner   */
+  /*     ni el propio bot, entonces no se responde a la palabra clave. */
   const actPath = path.resolve('./activos.json');
   if (isGroup && fs.existsSync(actPath)) {
     const act = JSON.parse(fs.readFileSync(actPath, 'utf-8'));
-    if (act.modoAdmins?.[chatId]) {
-      /* modoAdmins encendido → salimos sin responder */
-      // console.log('[guar] modoAdmins activo; omitiendo respuesta');
+    const modoAdminsOn = act.modoAdmins?.[chatId];
+    const senderIsOwner = isOwner(sender);   // tu helper de siempre
+    if (modoAdminsOn && !senderIsOwner && !fromMe) {
+      // console.log('[guar] modoAdmins activo; ignorando no-owner');
       return;
     }
   }
-  /* ── 2. Procesar la tabla de palabras clave ────────────────────── */
+
+  /* 2️⃣  Procesa la tabla guar.json normalmente si pasó el filtro */
   const guarPath = path.resolve('./guar.json');
   if (fs.existsSync(guarPath)) {
     const guarData = JSON.parse(fs.readFileSync(guarPath, 'utf-8'));
 
-    /* normaliza el texto entrante */
     const cleanText = messageText
       .toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^\w]/g, '');
 
-    /* recorre las claves */
     for (const key of Object.keys(guarData)) {
       const cleanKey = key
         .toLowerCase()
@@ -1058,20 +1059,20 @@ try {
                        payload.ptt      = false;               break;
           case 'webp': payload.sticker = buffer; break;
           default:     payload.document = buffer;
-                       payload.mimetype = item.mimetype || "application/octet-stream";
+                       payload.mimetype = item.mimetype || 'application/octet-stream';
                        payload.fileName = `archivo.${item.extension}`;
                        break;
         }
 
         await sock.sendMessage(chatId, payload, { quoted: msg });
-        return;   // se encontró coincidencia
+        return;
       }
     }
   }
 } catch (e) {
   console.error("❌ Error al revisar guar.json / activos.json:", e);
 }
-// === FIN LÓGICA DE RESPUESTA AUTOMÁTICA CON PALABRA CLAVE ===    
+// === FIN LÓGICA DE RESPUESTA AUTOMÁTICA CON PALABRA CLAVE ===
 
     
 // === INICIO BLOQUEO DE MENSAJES DE USUARIOS MUTEADOS ===
