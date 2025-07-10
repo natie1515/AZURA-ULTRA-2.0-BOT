@@ -5,8 +5,8 @@ const pino = require("pino");
 const QRCode = require("qrcode");
 const {
   default: makeWASocket,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
+  Browsers,
+  useSQLAuthState,
   DisconnectReason,
 } = require("@whiskeysockets/baileys");
 
@@ -50,7 +50,7 @@ const handler = async (msg, { conn, command, sock }) => {
 
       const subbotDirs = fs
         .readdirSync(sessionDir)
-        .filter((d) => fs.existsSync(path.join(sessionDir, d, "creds.json")));
+        .filter((d) => fs.existsSync(path.join(sessionDir, d, "auth.sqlite")));
 
       if (subbotDirs.length >= MAX_SUBBOTS) {
         await conn.sendMessage(
@@ -76,16 +76,13 @@ const handler = async (msg, { conn, command, sock }) => {
       await conn.sendMessage(msg.key.remoteJid, { react: { text: "⌛", key: msg.key } });
 
       async function createSocket() {
-        const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-        const { version } = await fetchLatestBaileysVersion();
+        const { state, saveCreds } = await useSQLAuthState(sessionPath);
         const logger = pino({ level: "silent" });
 
         const socky = makeWASocket({
-          version,
           logger,
           auth: state,
-          printQRInTerminal: !usarPairingCode,
-          browser: ["Windows", "Chrome"],
+          browser: Browsers.ubuntu("Chrome"),
           syncFullHistory: false,
         });
 

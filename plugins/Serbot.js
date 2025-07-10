@@ -50,7 +50,7 @@ const handler = async (msg, { conn, command, sock }) => {
 
       const subbotDirs = fs
         .readdirSync(sessionDir)
-        .filter((d) => fs.existsSync(path.join(sessionDir, d, "creds.json")));
+        .filter((d) => fs.existsSync(path.join(sessionDir, d, "auth.sqlite")));
 
       if (subbotDirs.length >= MAX_SUBBOTS) {
         await conn.sendMessage(

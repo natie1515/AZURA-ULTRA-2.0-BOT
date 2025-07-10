@@ -517,7 +517,7 @@ async function cargarSubBots() {
     console.log("📁 Carpeta ./subbots creada automáticamente.");
   }
 
-  const dirs = fs.readdirSync(base).filter((d) => fs.existsSync(path.join(base, d, "creds.json")));
+  const dirs = fs.readdirSync(base).filter((d) => fs.existsSync(path.join(base, d, "auth.sqlite")));
 
   console.log(`🤖 Cargando ${dirs.length} subbot(s) conectados…`);
   await Promise.all(dirs.map((d) => iniciarSubBot(path.join(base, d))));
