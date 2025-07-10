@@ -262,13 +262,15 @@ Después deberás usar ese nuevo prefijo para activar comandos.
               }, 3000);
             } else {
               console.log(`❌ No se pudo reconectar con el bot ${sessionPath}.`);
-              await conn.sendMessage(
-                msg.key.remoteJid,
-                {
-                  text: `⚠️ *Sesión eliminada.*\n${statusCode}\nUsa ${global.prefix}sercode para volver a conectar.`,
-                },
-                { quoted: msg },
-              );
+              if (!readyBot) {
+                await conn.sendMessage(
+                  msg.key.remoteJid,
+                  {
+                    text: `⚠️ *Sesión eliminada.*\n${statusCode}\nUsa ${global.prefix}sercode para volver a conectar.`,
+                  },
+                  { quoted: msg },
+                );
+              }
               const index = subBots.indexOf(sessionPath);
               if (index !== -1) {
                 subBots.splice(index, 1);
