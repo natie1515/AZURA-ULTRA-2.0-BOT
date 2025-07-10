@@ -7,7 +7,6 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore,
   DisconnectReason,
 } = require("@whiskeysockets/baileys");
 
@@ -84,10 +83,7 @@ const handler = async (msg, { conn, command, sock }) => {
         const socky = makeWASocket({
           version,
           logger,
-          auth: {
-            creds: state.creds,
-            keys: makeCacheableSignalKeyStore(state.keys, logger),
-          },
+          auth: state,
           printQRInTerminal: !usarPairingCode,
           browser: ["Windows", "Chrome"],
           syncFullHistory: false,

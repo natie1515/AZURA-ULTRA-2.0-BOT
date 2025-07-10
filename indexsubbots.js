@@ -5,7 +5,6 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore,
   DisconnectReason,
   downloadContentFromMessage,
 } = require("@whiskeysockets/baileys");
@@ -59,10 +58,7 @@ async function iniciarSubBot(sessionPath) {
   const subSock = makeWASocket({
     version,
     logger: pino({ level: "silent" }),
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" })),
-    },
+    auth: state,
     browser: ["Azura Subbot", "Firefox", "2.0"],
     syncFullHistory: false,
   });
