@@ -1410,13 +1410,13 @@ const path = require("path");
             sock.ev.on("creds.update", saveCreds);
 
             // Manejo de errores global para evitar que el bot se detenga
-            /*process.on("uncaughtException", (err) => {
+            process.on("uncaughtException", (err) => {
                 console.error(chalk.red("⚠️ Error no manejado:"), err);
             });
 
             process.on("unhandledRejection", (reason, promise) => {
                 console.error(chalk.red("🚨 Promesa rechazada sin manejar:"), promise, "razón:", reason);
-            });*/
+            });
 
         } catch (error) {
             console.error(chalk.red("❌ Error en la conexión:"), error);
