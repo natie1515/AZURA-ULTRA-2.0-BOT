@@ -18,7 +18,7 @@ module.exports = async (msg, { conn, usedPrefix }) => {
 │  🐾 Entrena a tus mascotas  
 │  ⚔️ ¡Vive épicas aventuras y sube de nivel!
 │
-╰─━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─╯
+╰─━━━━━━━━━━━━━━━━─╯
 
 🔰 Para empezar:  
 ✦ ${usedPrefix}rpg <nombre> <edad>  
