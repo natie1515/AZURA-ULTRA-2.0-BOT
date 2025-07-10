@@ -8,7 +8,7 @@ const handler = async (msg, { conn }) => {
   // Leer subbots conectados
   const subDirs = fs.existsSync(subbotsFolder)
     ? fs.readdirSync(subbotsFolder).filter(d =>
-        fs.existsSync(path.join(subbotsFolder, d, "auth.sqlite"))
+        fs.existsSync(path.join(subbotsFolder, d, "creds.json"))
       )
     : [];
 

@@ -7,12 +7,13 @@ const handler = async (msg, { conn }) => {
   const sessionDir = path.join(__dirname, "../subbots");
   const sessionPath = path.join(sessionDir, number);
 
+  const index = subBots.indexOf(sessionPath);
+  if (index !== -1) {
+    subBots.splice(index, 1);
+  }
+
   if (fs.existsSync(sessionPath)) {
     fs.rmSync(sessionPath, { recursive: true, force: true });
-    const index = subBots.indexOf(sessionPath);
-    if (index !== -1) {
-      subBots.splice(index, 1);
-    }
     await conn.sendMessage(msg.key.remoteJid, {
       text: "🗑️ *Tu sesión ha sido eliminada correctamente.*\n\nPuedes volver a usar *#sercode o #code* cuando gustes.",
       quoted: msg,
