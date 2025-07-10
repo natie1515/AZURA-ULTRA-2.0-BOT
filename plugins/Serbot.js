@@ -93,7 +93,7 @@ const handler = async (msg, { conn, command, sock }) => {
       }
 
       let reconnectionAttempts = 0;
-      const maxReconnectionAttempts = 3;
+      let readyBot = false;
 
       async function setupSocketEvents() {
         const { socky, saveCreds } = await createSocket();
@@ -134,6 +134,7 @@ const handler = async (msg, { conn, command, sock }) => {
           }
 
           if (connection === "open") {
+            readyBot = true;
             await conn.sendMessage(
               msg.key.remoteJid,
               {
@@ -221,28 +222,12 @@ Después deberás usar ese nuevo prefijo para activar comandos.
             const isFatalError = [
               DisconnectReason.badSession,
               DisconnectReason.loggedOut,
-              DisconnectReason.connectionClosed,
-              DisconnectReason.connectionReplaced,
               DisconnectReason.multideviceMismatch,
               DisconnectReason.forbidden,
             ].includes(statusCode);
             if (!isFatalError) {
-              if (reconnectionAttempts >= maxReconnectionAttempts) {
-                const index = subBots.indexOf(sessionPath);
-                if (index !== -1) {
-                  subBots.splice(index, 1);
-                }
-                fs.rmSync(sessionPath, { recursive: true, force: true });
-                return await conn.sendMessage(
-                  msg.key.remoteJid,
-                  {
-                    text: `⚠️ *Sesión eliminada.*\nIntentos máximos de reconexión alcanzados.\nUsa ${global.prefix}sercode para volver a conectar.`,
-                  },
-                  { quoted: msg },
-                );
-              }
-
-              if (reconnectionAttempts > 0) {
+              if (reconnectionAttempts > 0 && !readyBot) {
+                reconnectionAttempts++;
                 await conn.sendMessage(
                   msg.key.remoteJid,
                   {
@@ -262,8 +247,6 @@ Después deberás usar ese nuevo prefijo para activar comandos.
                   { quoted: msg },
                 );
               }
-
-              reconnectionAttempts++;
               const index = subBots.indexOf(sessionPath);
               if (index !== -1) {
                 subBots.splice(index, 1);
