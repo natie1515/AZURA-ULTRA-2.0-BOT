@@ -20,7 +20,7 @@ const handler = async (msg, { conn }) => {
 `🏓 *Pong chucha ya este subbot anda activo pa culiar 🍑
 con una culona; tráeme a tu mamá o hermana, perro 🐕!*
 
-✅ *Ping:* ${ping} ms`
+✅ *Ping:* ${ping} ms. Soy tan Rapido Como Tu Novia cuando Te dejo😆`
     },
     { edit: sent.key }
   );
