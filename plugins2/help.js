@@ -38,39 +38,10 @@ const handler = async (msg, { conn }) => {
 ╭─❍ 𓂃 𝑺𝒖𝒃𝒃𝒐𝒕 𝑷𝒆𝒓𝒔𝒐𝒏𝒂𝒍𝒊𝒛𝒂𝒅𝒐 ❍─╮
 │   𝙈𝙚𝙣𝙪́: *${nombreMenu}*
 ╰────────────────────╯
-╔════════════════════════════╗  
-║ 🌟 𝗕𝗜𝗘𝗡𝗩𝗘𝗡𝗜𝗗𝗢 𝗔𝗟 𝗠𝗨𝗟𝗧𝗜-𝗥𝗣𝗚 🌟 ║  
-╚════════════════════════════╝  
-
-✨ ¡SubBots ya cuenta con un **RPG** de personajes y mascotas!  
-⚔️ Sube de nivel, gana recompensas y personaliza tu aventura.  
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━  
-🔎 **¿CÓMO EMPEZAR?**  
-➤ Usa el comando:  
-   ✦ `${usedPrefix}menurpg`  
-✦ Ahí encontrarás **todos** los comandos y tutoriales.  
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━  
-🎮 **CARACTERÍSTICAS PRINCIPALES**  
-• 👤 Crea y gestiona tus **personajes**  
-• 🐾 Cuida y entrena tus **mascotas**  
-• ⚡ Sube de nivel y desbloquea nuevas habilidades  
-• 🏆 Participa en **batallas** y clasificaciones  
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━  
-📜 **COMANDOS BÁSICOS**  
-➤ `${usedPrefix}rpg <nombre> <edad>` – Registrarte  
-➤ `${usedPrefix}verper` – Ver tus personajes  
-➤ `${usedPrefix}per <número>` – Cambiar personaje principal  
-➤ `${usedPrefix}mascota` – Ver tus mascotas  
-➤ `${usedPrefix}curar` – Restaurar vida  
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━  
-⚙️ **Y MUCHO MÁS…**  
-Explora el menú completo con `${usedPrefix}menurpg`  
-
-✨ ¡Que comience la aventura en SubBots RPG! ✨
+— 🔹 ya lo subbots tienen rpg de personajes y mascotas y puedes  
+— 🔹 subirlo de nivel para ver los comando usar el rpg usa: 
+✦ ${usedPrefix}menurpg  
+— 🔹 veras todo lo que ocupas saber.
 
 ┏━━🧠 𝗜𝗻𝘁𝗲𝗹𝗶𝗴𝗲𝗻𝗰𝗶𝗮
 ┃ ✦ ${usedPrefix}𝘤𝘩𝘢𝘵𝘨𝘱𝘵
@@ -126,40 +97,10 @@ Explora el menú completo con `${usedPrefix}menurpg`
 ╔⌬ ${nombreMenu}⌬╗
 ║   Menú por categorías  
 ╚═──────────────────═╝
-╔════════════════════════════╗  
-║ 🌟 𝗕𝗜𝗘𝗡𝗩𝗘𝗡𝗜𝗗𝗢 𝗔𝗟 𝗠𝗨𝗟𝗧𝗜-𝗥𝗣𝗚 🌟 ║  
-╚════════════════════════════╝  
-
-✨ ¡SubBots ya cuenta con un **RPG** de personajes y mascotas!  
-⚔️ Sube de nivel, gana recompensas y personaliza tu aventura.  
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━  
-🔎 **¿CÓMO EMPEZAR?**  
-➤ Usa el comando:  
-   ✦ `${usedPrefix}menurpg`  
-✦ Ahí encontrarás **todos** los comandos y tutoriales.  
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━  
-🎮 **CARACTERÍSTICAS PRINCIPALES**  
-• 👤 Crea y gestiona tus **personajes**  
-• 🐾 Cuida y entrena tus **mascotas**  
-• ⚡ Sube de nivel y desbloquea nuevas habilidades  
-• 🏆 Participa en **batallas** y clasificaciones  
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━  
-📜 **COMANDOS BÁSICOS**  
-➤ `${usedPrefix}rpg <nombre> <edad>` – Registrarte  
-➤ `${usedPrefix}verper` – Ver tus personajes  
-➤ `${usedPrefix}per <número>` – Cambiar personaje principal  
-➤ `${usedPrefix}mascota` – Ver tus mascotas  
-➤ `${usedPrefix}curar` – Restaurar vida  
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━  
-⚙️ **Y MUCHO MÁS…**  
-Explora el menú completo con `${usedPrefix}menurpg`  
-
-✨ ¡Que comience la aventura en SubBots RPG! ✨
-
+— 🔹 ya lo subbots tienen rpg de personajes y mascotas y puedes  
+— 🔹 subirlo de nivel para ver los comando usar el rpg usa: 
+✦ ${usedPrefix}menurpg  
+— 🔹 veras todo lo que ocupas saber.
 
 〔 👇Haz Que Tus Amigos Sean *SUBBOTS* También Diles Que Envíen Estos Comandos👇 〕
 ⟢ ${usedPrefix}serbot / qr
