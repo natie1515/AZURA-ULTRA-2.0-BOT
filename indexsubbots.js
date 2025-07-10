@@ -12,6 +12,8 @@ const {
 const { Boom } = require("@hapi/boom");
 
 const subBots = [];
+const MAX_RECONNECTION_ATTEMPTS = 3;
+const reconnectionAttempts = new Map();
 
 function loadSubPlugins() {
   const out = [];
@@ -70,33 +72,63 @@ async function iniciarSubBot(sessionPath) {
   subSock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
     if (connection === "open") {
       console.log(`✔️ Subbot ${dir} online.`);
+      reconnectionAttempts.set(sessionPath, 0);
     }
+
     if (connection === "close") {
       const statusCode =
         lastDisconnect?.error instanceof Boom
           ? lastDisconnect.error.output.statusCode
           : lastDisconnect?.error;
       console.log(`❌ Subbot ${dir} desconectado (status: ${statusCode}).`);
-      console.log("💱 Tratando de reconectar!");
+
       const isFatalError = [
         DisconnectReason.badSession,
         DisconnectReason.loggedOut,
         DisconnectReason.multideviceMismatch,
         DisconnectReason.forbidden,
       ].includes(statusCode);
+
       if (!isFatalError) {
-        const index = subBots.indexOf(sessionPath);
-        if (index !== -1) {
-          subBots.splice(index, 1);
+        const currentAttempts = reconnectionAttempts.get(sessionPath) || 0;
+
+        if (currentAttempts < MAX_RECONNECTION_ATTEMPTS) {
+          reconnectionAttempts.set(sessionPath, currentAttempts + 1);
+          console.log(
+            `💱 Intento de reconexión ${
+              currentAttempts + 1
+            }/${MAX_RECONNECTION_ATTEMPTS} para ${dir}`,
+          );
+
+          const index = subBots.indexOf(sessionPath);
+          if (index !== -1) {
+            subBots.splice(index, 1);
+          }
+
+          setTimeout(() => iniciarSubBot(sessionPath), 500);
+        } else {
+          console.log(
+            `❌ Máximo de intentos de reconexión alcanzado para ${dir}. Eliminando sesión.`,
+          );
+          const index = subBots.indexOf(sessionPath);
+          if (index !== -1) {
+            subBots.splice(index, 1);
+          }
+          reconnectionAttempts.delete(sessionPath);
+          if (fs.existsSync(sessionPath)) {
+            fs.rmSync(sessionPath, { recursive: true, force: true });
+          }
         }
-        await iniciarSubBot(sessionPath);
       } else {
-        console.log(`❌ No se pudo reconectar con el bot ${dir}.`);
+        console.log(`❌ Error fatal en ${dir}, no se puede reconectar. Eliminando sesión.`);
         const index = subBots.indexOf(sessionPath);
         if (index !== -1) {
           subBots.splice(index, 1);
         }
-        fs.rmSync(sessionPath, { recursive: true, force: true });
+        reconnectionAttempts.delete(sessionPath);
+        if (fs.existsSync(sessionPath)) {
+          fs.rmSync(sessionPath, { recursive: true, force: true });
+        }
       }
     }
   });
@@ -106,72 +138,72 @@ async function iniciarSubBot(sessionPath) {
 
 async function socketEvents(subSock) {
   subSock.ev.on("group-participants.update", async (update) => {
-  try {
-    if (!update.id.endsWith("@g.us")) return;
+    try {
+      if (!update.id.endsWith("@g.us")) return;
 
-    if (!["add", "remove"].includes(update.action)) return;
+      if (!["add", "remove"].includes(update.action)) return;
 
-    const chatId = update.id;
-    const subbotID = subSock.user.id;
-    const filePath = path.join(__dirname, "activossubbots.json");
+      const chatId = update.id;
+      const subbotID = subSock.user.id;
+      const filePath = path.join(__dirname, "activossubbots.json");
 
-    let activos = {};
-    if (fs.existsSync(filePath)) {
-      activos = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    }
-
-    if (!activos.welcome || !activos.welcome[subbotID] || !activos.welcome[subbotID][chatId]) {
-      return;
-    }
-
-    const welcomeTexts = [
-      "🎉 ¡Bienvenido(a)! Gracias por unirte al grupo.",
-      "👋 ¡Hola! Qué bueno tenerte con nosotros.",
-      "🌟 ¡Saludos! Esperamos que la pases genial aquí.",
-      "🚀 ¡Bienvenido(a)! Disfruta y participa activamente.",
-      "✨ ¡Qué alegría verte por aquí! Pásala bien.",
-    ];
-
-    const farewellTexts = [
-      "👋 ¡Adiós! Esperamos verte pronto de nuevo.",
-      "😢 Se ha ido un miembro del grupo, ¡suerte!",
-      "📤 Gracias por estar con nosotros, hasta luego.",
-      "🔚 Un miembro se ha retirado. ¡Buena suerte!",
-      "💨 ¡Chao! Esperamos que hayas disfrutado del grupo.",
-    ];
-
-    const texts = update.action === "add" ? welcomeTexts : farewellTexts;
-    const mensajeAleatorio = () => texts[Math.floor(Math.random() * texts.length)];
-
-    for (const participant of update.participants) {
-      const mention = `@${participant.split("@")[0]}`;
-      const mensaje = mensajeAleatorio();
-      const tipo = Math.random();
-
-      if (tipo < 0.5) {
-        let profilePic;
-        try {
-          profilePic = await subSock.profilePictureUrl(participant, "image");
-        } catch {
-          profilePic = "https://cdn.dorratz.com/files/1741323171822.jpg";
-        }
-
-        await subSock.sendMessage(chatId, {
-          image: { url: profilePic },
-          caption: `👋 ${mention}\n\n${mensaje}`,
-          mentions: [participant],
-        });
-      } else {
-        await subSock.sendMessage(chatId, {
-          text: `👋 ${mention}\n\n${mensaje}`,
-          mentions: [participant],
-        });
+      let activos = {};
+      if (fs.existsSync(filePath)) {
+        activos = JSON.parse(fs.readFileSync(filePath, "utf-8"));
       }
+
+      if (!activos.welcome || !activos.welcome[subbotID] || !activos.welcome[subbotID][chatId]) {
+        return;
+      }
+
+      const welcomeTexts = [
+        "🎉 ¡Bienvenido(a)! Gracias por unirte al grupo.",
+        "👋 ¡Hola! Qué bueno tenerte con nosotros.",
+        "🌟 ¡Saludos! Esperamos que la pases genial aquí.",
+        "🚀 ¡Bienvenido(a)! Disfruta y participa activamente.",
+        "✨ ¡Qué alegría verte por aquí! Pásala bien.",
+      ];
+
+      const farewellTexts = [
+        "👋 ¡Adiós! Esperamos verte pronto de nuevo.",
+        "😢 Se ha ido un miembro del grupo, ¡suerte!",
+        "📤 Gracias por estar con nosotros, hasta luego.",
+        "🔚 Un miembro se ha retirado. ¡Buena suerte!",
+        "💨 ¡Chao! Esperamos que hayas disfrutado del grupo.",
+      ];
+
+      const texts = update.action === "add" ? welcomeTexts : farewellTexts;
+      const mensajeAleatorio = () => texts[Math.floor(Math.random() * texts.length)];
+
+      for (const participant of update.participants) {
+        const mention = `@${participant.split("@")[0]}`;
+        const mensaje = mensajeAleatorio();
+        const tipo = Math.random();
+
+        if (tipo < 0.5) {
+          let profilePic;
+          try {
+            profilePic = await subSock.profilePictureUrl(participant, "image");
+          } catch {
+            profilePic = "https://cdn.dorratz.com/files/1741323171822.jpg";
+          }
+
+          await subSock.sendMessage(chatId, {
+            image: { url: profilePic },
+            caption: `👋 ${mention}\n\n${mensaje}`,
+            mentions: [participant],
+          });
+        } else {
+          await subSock.sendMessage(chatId, {
+            text: `👋 ${mention}\n\n${mensaje}`,
+            mentions: [participant],
+          });
+        }
+      }
+    } catch (err) {
+      console.error("❌ Error en bienvenida/despedida del subbot:", err);
     }
-  } catch (err) {
-    console.error("❌ Error en bienvenida/despedida del subbot:", err);
-  }
-});
+  });
 
   subSock.ev.on("messages.upsert", async (msg) => {
     try {
@@ -436,34 +468,34 @@ async function socketEvents(subSock) {
         }
       }
       // === INICIO LÓGICA PRIVADO AUTORIZADO ===
-if (!isGroup) {
-  const isFromSelf = m.key.fromMe;
-  const rawID = subSock.user?.id || "";
-  const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
+      if (!isGroup) {
+        const isFromSelf = m.key.fromMe;
+        const rawID = subSock.user?.id || "";
+        const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
 
-  if (!isFromSelf) {
-    const listaPath = path.join(__dirname, "listasubots.json");
-    let dataPriv = {};
+        if (!isFromSelf) {
+          const listaPath = path.join(__dirname, "listasubots.json");
+          let dataPriv = {};
 
-    try {
-      if (fs.existsSync(listaPath)) {
-        dataPriv = JSON.parse(fs.readFileSync(listaPath, "utf-8"));
+          try {
+            if (fs.existsSync(listaPath)) {
+              dataPriv = JSON.parse(fs.readFileSync(listaPath, "utf-8"));
+            }
+          } catch (e) {
+            console.error("❌ Error leyendo listasubots.json:", e);
+          }
+
+          const listaPermitidos = Array.isArray(dataPriv[subbotID]) ? dataPriv[subbotID] : [];
+
+          if (
+            !listaPermitidos.includes(senderNum) &&
+            !global.owner.some(([id]) => id === senderNum)
+          ) {
+            return; // 🚫 Usuario no autorizado, ignorar mensaje privado
+          }
+        }
       }
-    } catch (e) {
-      console.error("❌ Error leyendo listasubots.json:", e);
-    }
-
-    const listaPermitidos = Array.isArray(dataPriv[subbotID]) ? dataPriv[subbotID] : [];
-
-    if (
-      !listaPermitidos.includes(senderNum) &&
-      !global.owner.some(([id]) => id === senderNum)
-    ) {
-      return; // 🚫 Usuario no autorizado, ignorar mensaje privado
-    }
-  }
-}
-// === FIN LÓGICA PRIVADO AUTORIZADO ===
+      // === FIN LÓGICA PRIVADO AUTORIZADO ===
       const customPrefix = dataPrefijos[subbotID];
       const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
       const usedPrefix = allowedPrefixes.find((p) => messageText.startsWith(p));

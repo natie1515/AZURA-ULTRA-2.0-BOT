@@ -324,7 +324,7 @@ Después deberás usar ese nuevo prefijo para activar comandos.
                   } catch (error) {
                     console.error("Error en reconexión:", error);
                   }
-                }, 100);
+                }, 500);
               } else {
                 console.log(
                   `❌ Máximo de intentos de reconexión alcanzado para ${sessionPath}. Eliminando sesión...`,
