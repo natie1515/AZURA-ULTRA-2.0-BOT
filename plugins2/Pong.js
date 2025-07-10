@@ -1,18 +1,30 @@
+/*  plugins2/ping.js  – envía **un solo** mensaje editado con el ping  */
+
 const handler = async (msg, { conn }) => {
-  const start = Date.now();
+  /* 1️⃣  envía un mensaje “placeholder” */
+  const start  = Date.now();
+  const sent   = await conn.sendMessage(
+    msg.key.remoteJid,
+    { text: "🏓 *Pong…*  (calculando ping)" },
+    { quoted: msg }
+  );
 
-  const respuesta = await conn.sendMessage(msg.key.remoteJid, {
-    text: "🏓 *Pong chucha ya este subbots anda activo pa culiar🍑 con una culona traime a tu mamá o hermana perro🐕!*"
-  }, { quoted: msg });
+  /* 2️⃣  calcula la latencia de ida */
+  const ping = Date.now() - start;
 
-  const end = Date.now();
-  const ping = end - start;
+  /* 3️⃣  edita ese mismo mensaje con el resultado */
+  await conn.sendMessage(
+    msg.key.remoteJid,
+    {
+      text:
+`🏓 *Pong chucha ya este subbot anda activo pa culiar 🍑
+con una culona; tráeme a tu mamá o hermana, perro 🐕!*
 
-  await conn.sendMessage(msg.key.remoteJid, {
-    text: `✅ *Ping:* ${ping} ms`,
-    quoted: respuesta
-  });
+✅ *Ping:* ${ping} ms`
+    },
+    { edit: sent.key }
+  );
 };
 
-handler.command = ['ping'];
+handler.command = ["ping"];
 module.exports = handler;
