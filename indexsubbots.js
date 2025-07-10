@@ -3,15 +3,16 @@ const fs = require("fs");
 const pino = require("pino");
 const {
   default: makeWASocket,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore,
+  Browsers,
+  useSQLAuthState,
   DisconnectReason,
   downloadContentFromMessage,
 } = require("@whiskeysockets/baileys");
 const { Boom } = require("@hapi/boom");
 
 const subBots = [];
+const MAX_RECONNECTION_ATTEMPTS = 3;
+const reconnectionAttempts = new Map();
 
 function loadSubPlugins() {
   const out = [];
@@ -51,17 +52,12 @@ async function iniciarSubBot(sessionPath) {
     return;
   }
   const dir = path.basename(sessionPath);
-  const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-  const { version } = await fetchLatestBaileysVersion();
+  const { state, saveCreds } = await useSQLAuthState(sessionPath);
 
   const subSock = makeWASocket({
-    version,
     logger: pino({ level: "silent" }),
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" })),
-    },
-    browser: ["Azura Subbot", "Firefox", "2.0"],
+    auth: state,
+    browser: Browsers.ubuntu("Chrome"),
     syncFullHistory: false,
   });
 
@@ -70,33 +66,63 @@ async function iniciarSubBot(sessionPath) {
   subSock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
     if (connection === "open") {
       console.log(`✔️ Subbot ${dir} online.`);
+      reconnectionAttempts.set(sessionPath, 0);
     }
+
     if (connection === "close") {
       const statusCode =
         lastDisconnect?.error instanceof Boom
           ? lastDisconnect.error.output.statusCode
           : lastDisconnect?.error;
       console.log(`❌ Subbot ${dir} desconectado (status: ${statusCode}).`);
-      console.log("💱 Tratando de reconectar!");
+
       const isFatalError = [
         DisconnectReason.badSession,
         DisconnectReason.loggedOut,
         DisconnectReason.multideviceMismatch,
         DisconnectReason.forbidden,
       ].includes(statusCode);
+
       if (!isFatalError) {
-        const index = subBots.indexOf(sessionPath);
-        if (index !== -1) {
-          subBots.splice(index, 1);
+        const currentAttempts = reconnectionAttempts.get(sessionPath) || 0;
+
+        if (currentAttempts < MAX_RECONNECTION_ATTEMPTS) {
+          reconnectionAttempts.set(sessionPath, currentAttempts + 1);
+          console.log(
+            `💱 Intento de reconexión ${
+              currentAttempts + 1
+            }/${MAX_RECONNECTION_ATTEMPTS} para ${dir}`,
+          );
+
+          const index = subBots.indexOf(sessionPath);
+          if (index !== -1) {
+            subBots.splice(index, 1);
+          }
+
+          setTimeout(() => iniciarSubBot(sessionPath), 500);
+        } else {
+          console.log(
+            `❌ Máximo de intentos de reconexión alcanzado para ${dir}. Eliminando sesión.`,
+          );
+          const index = subBots.indexOf(sessionPath);
+          if (index !== -1) {
+            subBots.splice(index, 1);
+          }
+          reconnectionAttempts.delete(sessionPath);
+          if (fs.existsSync(sessionPath)) {
+            fs.rmSync(sessionPath, { recursive: true, force: true });
+          }
         }
-        await iniciarSubBot(sessionPath);
       } else {
-        console.log(`❌ No se pudo reconectar con el bot ${dir}.`);
+        console.log(`❌ Error fatal en ${dir}, no se puede reconectar. Eliminando sesión.`);
         const index = subBots.indexOf(sessionPath);
         if (index !== -1) {
           subBots.splice(index, 1);
         }
-        fs.rmSync(sessionPath, { recursive: true, force: true });
+        reconnectionAttempts.delete(sessionPath);
+        if (fs.existsSync(sessionPath)) {
+          fs.rmSync(sessionPath, { recursive: true, force: true });
+        }
       }
     }
   });
