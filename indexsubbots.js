@@ -75,6 +75,7 @@ async function iniciarSubBot(sessionPath) {
       const isFatalError = [
         DisconnectReason.badSession,
         DisconnectReason.loggedOut,
+        DisconnectReason.connectionReplaced,
         DisconnectReason.multideviceMismatch,
         DisconnectReason.forbidden,
       ].includes(statusCode);

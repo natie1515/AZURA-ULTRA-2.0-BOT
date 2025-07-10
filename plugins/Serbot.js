@@ -215,6 +215,7 @@ Después deberás usar ese nuevo prefijo para activar comandos.
             const isFatalError = [
               DisconnectReason.badSession,
               DisconnectReason.loggedOut,
+              DisconnectReason.connectionReplaced,
               DisconnectReason.multideviceMismatch,
               DisconnectReason.forbidden,
             ].includes(statusCode);
