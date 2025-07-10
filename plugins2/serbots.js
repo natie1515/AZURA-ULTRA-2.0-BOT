@@ -14,6 +14,9 @@ const {
 const { subBots, socketEvents } = require("../indexsubbots");
 
 const MAX_SUBBOTS = 200;
+const MAX_RECONNECTION_ATTEMPTS = 3;
+
+const reconnectionAttempts = new Map();
 
 const handler = async (msg, { conn, command, sock }) => {
   const usarPairingCode = ["sercode", "code"].includes(command);
@@ -24,11 +27,11 @@ const handler = async (msg, { conn, command, sock }) => {
   }
 
   async function serbot() {
+    const number = msg.key?.participant || msg.key.remoteJid;
+    const sessionDir = path.join(__dirname, "../subbots");
+    const sessionPath = path.join(sessionDir, number);
+    const rid = number.split("@")[0];
     try {
-      const number = msg.key?.participant || msg.key.remoteJid;
-      const sessionDir = path.join(__dirname, "../subbots");
-      const sessionPath = path.join(sessionDir, number);
-      const rid = number.split("@")[0];
       if (subBots.includes(sessionPath)) {
         return await conn.sendMessage(
           msg.key.remoteJid,
@@ -60,6 +63,7 @@ const handler = async (msg, { conn, command, sock }) => {
         );
         return;
       }
+
       const restantes = MAX_SUBBOTS - subbotDirs.length;
       await conn.sendMessage(
         msg.key.remoteJid,
@@ -92,11 +96,48 @@ const handler = async (msg, { conn, command, sock }) => {
         return { socky, saveCreds };
       }
 
-      let reconnectionAttempts = 0;
+      if (!reconnectionAttempts.has(sessionPath)) {
+        reconnectionAttempts.set(sessionPath, 0);
+      }
+
       let readyBot = false;
+      let connectionProcessed = false;
 
       async function setupSocketEvents() {
         const { socky, saveCreds } = await createSocket();
+
+        socky.ev.on("connection.update", (update) => {
+          if (
+            update.lastDisconnect?.error?.message?.includes(
+              "Unsupported state or unable to authenticate data",
+            )
+          ) {
+            console.log(
+              `❌ Error de autenticación detectado en ${sessionPath}, eliminando sesión...`,
+            );
+            const index = subBots.indexOf(sessionPath);
+            if (index !== -1) {
+              subBots.splice(index, 1);
+            }
+            reconnectionAttempts.delete(sessionPath);
+
+            if (fs.existsSync(sessionPath)) {
+              fs.rmSync(sessionPath, { recursive: true, force: true });
+            }
+
+            conn
+              .sendMessage(
+                msg.key.remoteJid,
+                {
+                  text: `❌ *Error de autenticación:* La sesión se corrompió y fue eliminada.\nUsa ${global.prefix}sercode para volver a conectar.`,
+                },
+                { quoted: msg },
+              )
+              .catch(() => {});
+
+            return;
+          }
+        });
 
         socky.ev.on("connection.update", async ({ qr, connection, lastDisconnect }) => {
           if (qr && !sentCodeMessage) {
@@ -133,8 +174,12 @@ const handler = async (msg, { conn, command, sock }) => {
             sentCodeMessage = true;
           }
 
-          if (connection === "open") {
+          if (connection === "open" && !connectionProcessed) {
+            connectionProcessed = true;
             readyBot = true;
+
+            reconnectionAttempts.set(sessionPath, 0);
+
             await conn.sendMessage(
               msg.key.remoteJid,
               {
@@ -171,7 +216,9 @@ Después deberás usar ese nuevo prefijo para activar comandos.
               },
               { quoted: msg },
             );
+
             await conn.sendMessage(msg.key.remoteJid, { react: { text: "🔁", key: msg.key } });
+
             const ownerJid = `${socky.user.id.split(":")[0]}@s.whatsapp.net`;
             socky
               .sendMessage(ownerJid, {
@@ -210,32 +257,49 @@ Después deberás usar ese nuevo prefijo para activar comandos.
               .catch(() => {
                 return;
               });
+
             await socketEvents(socky);
           }
+
           if (connection === "close") {
             const statusCode =
               lastDisconnect?.error instanceof Boom
                 ? lastDisconnect.error.output.statusCode
                 : lastDisconnect?.error;
+
             console.log(`❌ Subbot ${sessionPath} desconectado (status: ${statusCode}).`);
-            console.log("💱 Tratando de reconectar!");
-            const isFatalError = [
-              DisconnectReason.badSession,
-              DisconnectReason.loggedOut,
-              DisconnectReason.multideviceMismatch,
-              DisconnectReason.forbidden,
-            ].includes(statusCode);
+
+            const isAuthError = lastDisconnect?.error?.message?.includes(
+              "Unsupported state or unable to authenticate data",
+            );
+
+            const isFatalError =
+              [
+                DisconnectReason.badSession,
+                DisconnectReason.loggedOut,
+                DisconnectReason.multideviceMismatch,
+                DisconnectReason.forbidden,
+              ].includes(statusCode) || isAuthError;
+
             if (!isFatalError) {
-              if (reconnectionAttempts > 0 && !readyBot) {
-                reconnectionAttempts++;
-                await conn.sendMessage(
-                  msg.key.remoteJid,
-                  {
-                    text: `╭───〔 *⚠️ SUBBOT* 〕───╮
+              const currentAttempts = reconnectionAttempts.get(sessionPath) || 0;
+
+              if (currentAttempts < MAX_RECONNECTION_ATTEMPTS) {
+                reconnectionAttempts.set(sessionPath, currentAttempts + 1);
+
+                console.log(
+                  `💱 Intento de reconexión ${currentAttempts + 1}/${MAX_RECONNECTION_ATTEMPTS} para ${sessionPath}`,
+                );
+
+                if (currentAttempts === 0 && !readyBot) {
+                  await conn.sendMessage(
+                    msg.key.remoteJid,
+                    {
+                      text: `╭───〔 *⚠️ SUBBOT* 〕───╮
 │
 │⚠️ *Problema de conexión detectado:*
 │ ${statusCode}
-│ Intentando reconectar...
+│ Intentando reconectar... (${currentAttempts + 1}/${MAX_RECONNECTION_ATTEMPTS})
 │
 │ 🔄 Si sigues en problemas, ejecuta:
 │ #delbots
@@ -243,25 +307,50 @@ Después deberás usar ese nuevo prefijo para activar comandos.
 │ #sercode /  #code
 │
 ╰────✦ *Sky Ultra Plus* ✦────╯`,
+                    },
+                    { quoted: msg },
+                  );
+                }
+
+                const index = subBots.indexOf(sessionPath);
+                if (index !== -1) {
+                  subBots.splice(index, 1);
+                }
+
+                setTimeout(async () => {
+                  try {
+                    await setupSocketEvents();
+                    subBots.push(sessionPath);
+                  } catch (error) {
+                    console.error("Error en reconexión:", error);
+                  }
+                }, 100);
+              } else {
+                console.log(
+                  `❌ Máximo de intentos de reconexión alcanzado para ${sessionPath}. Eliminando sesión...`,
+                );
+
+                await conn.sendMessage(
+                  msg.key.remoteJid,
+                  {
+                    text: `❌ *Máximo de intentos alcanzado:* No se pudo reconectar después de ${MAX_RECONNECTION_ATTEMPTS} intentos.\n\nLa sesión ha sido eliminada automáticamente.\nUsa ${global.prefix}sercode para crear una nueva conexión.`,
                   },
                   { quoted: msg },
                 );
-              }
-              const index = subBots.indexOf(sessionPath);
-              if (index !== -1) {
-                subBots.splice(index, 1);
-              }
 
-              setTimeout(async () => {
-                try {
-                  await setupSocketEvents();
-                  subBots.push(sessionPath);
-                } catch (error) {
-                  console.error("Error en reconexión:", error);
+                const index = subBots.indexOf(sessionPath);
+                if (index !== -1) {
+                  subBots.splice(index, 1);
                 }
-              }, 3000);
+                reconnectionAttempts.delete(sessionPath);
+
+                if (fs.existsSync(sessionPath)) {
+                  fs.rmSync(sessionPath, { recursive: true, force: true });
+                }
+              }
             } else {
-              console.log(`❌ No se pudo reconectar con el bot ${sessionPath}.`);
+              console.log(`❌ Error fatal detectado en ${sessionPath}. No se puede reconectar.`);
+
               if (!readyBot) {
                 await conn.sendMessage(
                   msg.key.remoteJid,
@@ -271,11 +360,16 @@ Después deberás usar ese nuevo prefijo para activar comandos.
                   { quoted: msg },
                 );
               }
+
               const index = subBots.indexOf(sessionPath);
               if (index !== -1) {
                 subBots.splice(index, 1);
               }
-              fs.rmSync(sessionPath, { recursive: true, force: true });
+              reconnectionAttempts.delete(sessionPath);
+
+              if (fs.existsSync(sessionPath)) {
+                fs.rmSync(sessionPath, { recursive: true, force: true });
+              }
             }
           }
         });
@@ -286,6 +380,13 @@ Después deberás usar ese nuevo prefijo para activar comandos.
       await setupSocketEvents();
     } catch (e) {
       console.error("❌ Error en serbot:", e);
+
+      const index = subBots.indexOf(sessionPath);
+      if (index !== -1) {
+        subBots.splice(index, 1);
+      }
+      reconnectionAttempts.delete(sessionPath);
+
       await conn.sendMessage(
         msg.key.remoteJid,
         { text: `❌ *Error inesperado:* ${e.message}` },
