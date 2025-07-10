@@ -179,7 +179,7 @@ const handler = async (msg, { conn }) => {
     await conn.sendMessage(
       msg.key.remoteJid,
       {
-        image: imageBuffer ? imageBuffer : { url: `https://cdn.russellxz.click/139f04e1.jpeg` },
+        image: imageBuffer ? imageBuffer : { url: `https://cdn.russellxz.click/654e40ee.jpeg` },
         caption,
       },
       { quoted: msg }
