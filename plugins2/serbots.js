@@ -24,16 +24,16 @@ const handler = async (msg, { conn, command, sock }) => {
   }
 
   async function serbot() {
-    const number = msg.key?.participant || msg.key.remoteJid;
-    const sessionDir = path.join(__dirname, "../subbots");
-    const sessionPath = path.join(sessionDir, number);
-    const rid = number.split("@")[0];
     try {
+      const number = msg.key?.participant || msg.key.remoteJid;
+      const sessionDir = path.join(__dirname, "../subbots");
+      const sessionPath = path.join(sessionDir, number);
+      const rid = number.split("@")[0];
       if (subBots.includes(sessionPath)) {
         return await conn.sendMessage(
           msg.key.remoteJid,
           {
-            text: "ℹ️ Ese subbot ya existe.",
+            text: "ℹ️ Ese subbot ya existe. usa: *.delbots* para borrar tu sesión actual y vuelve a pedir codigo con:(.code o .sercode)",
           },
           { quoted: msg },
         );
@@ -286,11 +286,6 @@ Después deberás usar ese nuevo prefijo para activar comandos.
       await setupSocketEvents();
     } catch (e) {
       console.error("❌ Error en serbot:", e);
-
-      const index = subBots.indexOf(sessionPath);
-      if (index !== -1) {
-        subBots.splice(index, 1);
-      }
       await conn.sendMessage(
         msg.key.remoteJid,
         { text: `❌ *Error inesperado:* ${e.message}` },
