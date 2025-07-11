@@ -107,10 +107,9 @@ async function iniciarSubBot(sessionPath) {
 async function socketEvents(subSock) {
   subSock.ev.on("group-participants.update", async (update) => {
     try {
-      if (!update.id.endsWith("@g.us")) return;
-
-      if (!["add", "remove"].includes(update.action)) return;
-
+      if (!update.id.endsWith("@g.us")) {
+        return;
+      }
       const chatId = update.id;
       const subbotID = subSock.user.id;
       const filePath = path.join(__dirname, "activossubbots.json");
@@ -436,34 +435,30 @@ async function socketEvents(subSock) {
         }
       }
       // === INICIO LÓGICA PRIVADO AUTORIZADO ===
-if (!isGroup) {
-  const isFromSelf = m.key.fromMe;
-  const rawID = subSock.user?.id || "";
-  const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
+      if (!isGroup) {
+        const isFromSelf = m.key.fromMe;
+        const rawID = subSock.user?.id || "";
+        const subbotID = `${rawID.split(":")[0]}@s.whatsapp.net`;
 
-  if (!isFromSelf) {
-    const listaPath = path.join(__dirname, "listasubots.json");
-    let dataPriv = {};
+        if (!isFromSelf) {
+          const listaPath = path.join(__dirname, "listasubots.json");
+          let dataPriv = {};
 
-    try {
-      if (fs.existsSync(listaPath)) {
-        dataPriv = JSON.parse(fs.readFileSync(listaPath, "utf-8"));
+          try {
+            if (fs.existsSync(listaPath)) {
+              dataPriv = JSON.parse(fs.readFileSync(listaPath, "utf-8"));
+            }
+          } catch (e) {
+            console.error("❌ Error leyendo listasubots.json:", e);
+          }
+
+          const listaPermitidos = Array.isArray(dataPriv[subbotID]) ? dataPriv[subbotID] : [];
+
+          if (!listaPermitidos.includes(senderNum)) {
+            return;
+          }
+        }
       }
-    } catch (e) {
-      console.error("❌ Error leyendo listasubots.json:", e);
-    }
-
-    const listaPermitidos = Array.isArray(dataPriv[subbotID]) ? dataPriv[subbotID] : [];
-
-    if (
-      !listaPermitidos.includes(senderNum) &&
-      !global.owner.some(([id]) => id === senderNum)
-    ) {
-      return; // 🚫 Usuario no autorizado, ignorar mensaje privado
-    }
-  }
-}
-// === FIN LÓGICA PRIVADO AUTORIZADO ===
       const customPrefix = dataPrefijos[subbotID];
       const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
       const usedPrefix = allowedPrefixes.find((p) => messageText.startsWith(p));
