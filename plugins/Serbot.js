@@ -35,7 +35,7 @@ const handler = async (msg, { conn, command, sock }) => {
         return await conn.sendMessage(
           msg.key.remoteJid,
           {
-            text: "ℹ️ Ese subbot ya existe.",
+            text: "ℹ️ Ese subbot ya existe. usa *.delbots* para eliminar tu sesión actual y pedir un codigo nuevo con:(.code o .sercode)",
           },
           { quoted: msg },
         );
