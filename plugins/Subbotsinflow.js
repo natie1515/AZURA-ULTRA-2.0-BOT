@@ -5,7 +5,6 @@ const path = require("path");
 const handler = async (msg, { conn, args }) => {
   const chatId = msg.key.remoteJid;
   const senderJid = (msg.key.participant || chatId)?.replace(/[^0-9]/g, "");
-  const botNumber = conn.user.id.split(":")[0];
   const isOwner = global.owner?.some(([num]) => String(num) === senderJid) || msg.key.fromMe;
 
   if (!chatId.endsWith("@g.us")) {
@@ -32,21 +31,14 @@ const handler = async (msg, { conn, args }) => {
     }
   }
 
-  const rawID = conn.user?.id || "";
-  const subbotID = `${rawID.split(":")[0]}@s.whatsapp.net`;
-
-  if (!data[subbotID]) data[subbotID] = {};
-  if (!data[subbotID].subbots) data[subbotID].subbots = {};
-  if (!data[subbotID].subbots[chatId]) data[subbotID].subbots[chatId] = false;
-
   if (mode === "on") {
-    data[subbotID].subbots[chatId] = true;
+    data[chatId] = true;
     await conn.sendMessage(chatId, {
       text: "✅ *Modo subbots activado* en este grupo.",
     }, { quoted: msg });
     await conn.sendMessage(chatId, { react: { text: "✅", key: msg.key } });
   } else if (mode === "off") {
-    data[subbotID].subbots[chatId] = false;
+    data[chatId] = false;
     await conn.sendMessage(chatId, {
       text: "❌ *Modo subbots desactivado* en este grupo.",
     }, { quoted: msg });
@@ -60,5 +52,5 @@ const handler = async (msg, { conn, args }) => {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 };
 
-handler.command = ["subbotss"];
+handler.command = ["subbots"];
 module.exports = handler;
