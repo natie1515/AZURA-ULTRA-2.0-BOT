@@ -546,7 +546,7 @@ class SubBot {
 
 const SubBotManager = {
   subBots: new Map(),
-  sessionBaseDir: path.join(__dirname, "../subbots"),
+  sessionBaseDir: path.join(__dirname, "./subbots"),
   MAX_SUBBOTS: 200,
 
   createSubBot(sessionId, options = {}) {
