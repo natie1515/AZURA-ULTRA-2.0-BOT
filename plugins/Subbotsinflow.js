@@ -60,5 +60,5 @@ const handler = async (msg, { conn, args }) => {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 };
 
-handler.command = ["subbots"];
+handler.command = ["subbotss"];
 module.exports = handler;
