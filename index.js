@@ -80,8 +80,8 @@ async function perplexityQuery(q, prompt) {
   //lumi
     const axios = require("axios");
     const fetch = require("node-fetch");
-    const { cargarSubBots } = require("./indexsubbots");
-    await cargarSubBots()
+    const { SubBotManager } = require("./indexsubbots");
+    SubBotManager.loadExistingSubBots();
     const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } = require("@whiskeysockets/baileys");
     const chalk = require("chalk");
     const yargs = require('yargs/yargs')

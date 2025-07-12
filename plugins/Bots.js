@@ -1,47 +1,40 @@
-const handler = async (msg, { conn }) => {
-  const fs = require("fs");
-  const path = require("path");
+const fs = require("fs");
+const path = require("path");
+const { SubBotManager } = require("../indexsubbots");
 
-  const subbotsFolder = "./subbots";
+const handler = async (msg, { conn }) => {
   const prefixPath = path.join(__dirname, "..", "prefixes.json");
 
-  // Leer subbots conectados
-  const subDirs = fs.existsSync(subbotsFolder)
-    ? fs.readdirSync(subbotsFolder).filter(d =>
-        fs.existsSync(path.join(subbotsFolder, d, "creds.json"))
-      )
-    : [];
+  const subbots = SubBotManager.listSubBots();
 
-  if (subDirs.length === 0) {
-    return await conn.sendMessage2(
+  if (subbots.length === 0) {
+    return conn.sendMessage(
       msg.key.remoteJid,
-      "⚠️ No hay subbots conectados actualmente.",
-      msg
+      { text: "⚠️ No hay subbots conectados actualmente." },
+      { quoted: msg },
     );
   }
 
-  // Cargar prefijos personalizados
   let dataPrefijos = {};
   if (fs.existsSync(prefixPath)) {
     dataPrefijos = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
   }
 
-  // Generar lista de subbots
-  const total = subDirs.length;
-  const maxSubbots = 200;
+  const total = subbots.length;
+  const maxSubbots = SubBotManager.MAX_SUBBOTS;
   const disponibles = maxSubbots - total;
   const mentions = [];
 
-  const lista = subDirs.map((dir, i) => {
-    const jid = dir.split("@")[0];
-    const fullJid = `${jid}@s.whatsapp.net`;
-    mentions.push(fullJid);
-    const prefijo = dataPrefijos[fullJid] || ".";
+  const lista = subbots
+    .map((subbot, i) => {
+      const jid = subbot.id.split("@")[0];
+      mentions.push(subbot.id);
+      const prefijo = dataPrefijos[subbot.id] || ".";
 
-    return `╭➤ *Subbot ${i + 1}*\n│ Número: @${jid}\n│ Prefijo: *${prefijo}*\n╰───────────────`;
-  }).join("\n\n");
+      return `╭➤ *Subbot ${i + 1}*\n│ Número: @${jid}\n│ Prefijo: *${prefijo}*\n╰───────────────`;
+    })
+    .join("\n\n");
 
-  // Construir mensaje final
   const menu = `╭━〔 *AZURA ULTRA 2.0* 〕━⬣
 │ 🤖 Total conectados: *${total}/${maxSubbots}*
 │ 🟢 Sesiones libres: *${disponibles}*
@@ -49,18 +42,17 @@ const handler = async (msg, { conn }) => {
 
 ${lista}`;
 
-  // Enviar usando sendMessage2
-  await conn.sendMessage2(
+  await conn.sendMessage(
     msg.key.remoteJid,
     {
       text: menu,
-      mentions: mentions
+      mentions: mentions,
     },
-    msg
+    { quoted: msg },
   );
 };
 
-handler.command = ['bots', 'subbots'];
-handler.tags = ['owner'];
-handler.help = ['bots'];
+handler.command = ["bots", "subbots"];
+handler.tags = ["owner"];
+handler.help = ["bots"];
 module.exports = handler;
