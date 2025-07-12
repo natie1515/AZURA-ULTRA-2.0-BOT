@@ -245,7 +245,7 @@ Después deberás usar ese nuevo prefijo para activar comandos.  
                 );
               }
               const index = subBots.indexOf(sessionPath);
-              if (index > -1) {
+              if (index !== -1) {
                 subBots.splice(index, 1);
               }
 
