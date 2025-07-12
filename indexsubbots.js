@@ -422,8 +422,9 @@ async function socketEvents(subSock) {
 if (isGroup) {
   try {
     const grupoPath = path.resolve("./grupo.json");
-    const prefixPath = path.resolve("./prefixes.json");
     const activosPath = path.resolve("./activossubbots.json");
+    const prefixPath = path.resolve("./prefixes.json");
+
     const rawID = subSock.user?.id || "";
     const subbotID = `${rawID.split(":")[0]}@s.whatsapp.net`;
     const botNum = rawID.split(":")[0].replace(/[^0-9]/g, "");
@@ -436,9 +437,11 @@ if (isGroup) {
       "";
 
     let dataPrefijos = {};
-    if (fs.existsSync(prefixPath)) {
-      dataPrefijos = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
-    }
+    try {
+      if (fs.existsSync(prefixPath)) {
+        dataPrefijos = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
+      }
+    } catch (_) {}
 
     const customPrefix = dataPrefijos[subbotID];
     const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
@@ -454,23 +457,23 @@ if (isGroup) {
       dataGrupos = JSON.parse(fs.readFileSync(grupoPath, "utf-8"));
     }
 
+    let modoActivo = false;
+    if (fs.existsSync(activosPath)) {
+      const activos = JSON.parse(fs.readFileSync(activosPath, "utf-8"));
+      modoActivo = activos?.subbots?.[subbotID]?.[from] === true;
+    }
+
     const gruposPermitidos = Array.isArray(dataGrupos[subbotID]) ? dataGrupos[subbotID] : [];
 
     const isOwner = global.owner?.some(([id]) => id === senderNum);
 
-    // 🔥 Lógica del modo subbots
-    let activos = {};
-    if (fs.existsSync(activosPath)) {
-      activos = JSON.parse(fs.readFileSync(activosPath, "utf-8"));
-    }
-
-    const modoActivo = activos?.subbots?.[subbotID]?.[from] === true;
-
     if (
-      !modoActivo || // si el modo no está activo...
-      (!isOwner && !gruposPermitidos.includes(from) && !allowedCommands.includes(command))
+      senderNum !== botNum &&
+      !gruposPermitidos.includes(from) &&
+      !allowedCommands.includes(command) &&
+      !(modoActivo && isOwner)
     ) {
-      return;
+      return; // NO autorizado
     }
 
   } catch (err) {
