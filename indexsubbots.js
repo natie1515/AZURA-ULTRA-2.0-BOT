@@ -419,53 +419,73 @@ async function socketEvents(subSock) {
         }
       }
       // === INICIO LÓGICA GRUPO AUTORIZADO ===
-      if (isGroup) {
-        try {
-          const grupoPath = path.resolve("./grupo.json");
-          const prefixPath = path.resolve("./prefixes.json");
-          const rawID = subSock.user?.id || "";
-          const subbotID = `${rawID.split(":")[0]}@s.whatsapp.net`;
-          const botNum = rawID.split(":")[0].replace(/[^0-9]/g, "");
-          const messageText =
-            m.message?.conversation ||
-            m.message?.extendedTextMessage?.text ||
-            m.message?.imageMessage?.caption ||
-            m.message?.videoMessage?.caption ||
-            "";
-          let dataPrefijos = {};
-          try {
-            if (fs.existsSync(prefixPath)) {
-              dataPrefijos = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
-            }
-          } catch (_) {
-            //
-          }
-          const customPrefix = dataPrefijos[subbotID];
-          const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
-          const usedPrefix = allowedPrefixes.find((p) => messageText.startsWith(p));
-          if (!usedPrefix) {
-            return;
-          }
-          const body = messageText.slice(usedPrefix.length).trim();
-          const command = body.split(" ")[0].toLowerCase();
-          const allowedCommands = ["addgrupo"];
-          let dataGrupos = {};
-          if (fs.existsSync(grupoPath)) {
-            dataGrupos = JSON.parse(fs.readFileSync(grupoPath, "utf-8"));
-          }
-          const gruposPermitidos = Array.isArray(dataGrupos[subbotID]) ? dataGrupos[subbotID] : [];
-          if (
-            senderNum !== botNum &&
-            !gruposPermitidos.includes(from) &&
-            !allowedCommands.includes(command)
-          ) {
-            return;
-          }
-        } catch (err) {
-          console.error("❌ Error en verificación de grupo autorizado:", err);
-          return;
-        }
+if (isGroup) {
+  try {
+    const grupoPath = path.resolve("./grupo.json");
+    const prefixPath = path.resolve("./prefixes.json");
+    const activosPath = path.resolve("./activossubbots.json");
+
+    const rawID = subSock.user?.id || "";
+    const subbotID = `${rawID.split(":")[0]}@s.whatsapp.net`;
+    const botNum = rawID.split(":")[0].replace(/[^0-9]/g, "");
+    const messageText =
+      m.message?.conversation ||
+      m.message?.extendedTextMessage?.text ||
+      m.message?.imageMessage?.caption ||
+      m.message?.videoMessage?.caption ||
+      "";
+
+    let dataPrefijos = {};
+    try {
+      if (fs.existsSync(prefixPath)) {
+        dataPrefijos = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
       }
+    } catch (_) {}
+
+    const customPrefix = dataPrefijos[subbotID];
+    const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
+    const usedPrefix = allowedPrefixes.find((p) => messageText.startsWith(p));
+    if (!usedPrefix) return;
+
+    const body = messageText.slice(usedPrefix.length).trim();
+    const command = body.split(" ")[0].toLowerCase();
+    const allowedCommands = ["addgrupo"];
+
+    let dataGrupos = {};
+    if (fs.existsSync(grupoPath)) {
+      dataGrupos = JSON.parse(fs.readFileSync(grupoPath, "utf-8"));
+    }
+
+    const gruposPermitidos = Array.isArray(dataGrupos[subbotID]) ? dataGrupos[subbotID] : [];
+
+    // === NUEVO: permitir isOwner si el modo subbots está activado en ese grupo ===
+    let isOwner = false;
+    try {
+      const ownerList = global.owner?.map(([n]) => String(n)) || [];
+      isOwner = ownerList.includes(senderNum);
+    } catch {}
+
+    let modoActivo = false;
+    try {
+      if (fs.existsSync(activosPath)) {
+        const activos = JSON.parse(fs.readFileSync(activosPath, "utf-8"));
+        modoActivo = !!activos[subbotID]?.subbots?.[from];
+      }
+    } catch {}
+
+    if (
+      senderNum !== botNum &&
+      !gruposPermitidos.includes(from) &&
+      !allowedCommands.includes(command) &&
+      !(isOwner && modoActivo)
+    ) {
+      return;
+    }
+  } catch (err) {
+    console.error("❌ Error en verificación de grupo autorizado:", err);
+    return;
+  }
+}
       // === INICIO LÓGICA PRIVADO AUTORIZADO ===
       if (!isGroup) {
         const isFromSelf = m.key.fromMe;
