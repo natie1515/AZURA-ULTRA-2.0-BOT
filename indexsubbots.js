@@ -1,7 +1,6 @@
 const path = require("path");
 const fs = require("fs");
 const pino = require("pino");
-const QRCode = require("qrcode");
 const {
   default: makeWASocket,
   useMultiFileAuthState,
@@ -11,10 +10,6 @@ const {
   downloadContentFromMessage,
 } = require("@whiskeysockets/baileys");
 const { Boom } = require("@hapi/boom");
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 function loadSubPlugins() {
   const out = [];
@@ -47,16 +42,12 @@ async function handleSubCommand(sock, msg, command, args) {
 }
 
 class SubBot {
-  constructor(sessionPath, options = {}) {
+  constructor(sessionPath) {
     this.sessionPath = sessionPath;
     this.id = path.basename(sessionPath);
-    this.options = { isNew: false, ...options };
-    this.mainConn = this.options.mainConn;
-    this.initialMsg = this.options.initialMsg;
     this.socket = null;
     this.status = "pending";
     this.retries = 0;
-    this.sentCode = false;
     this.logger = pino({ level: "silent" });
   }
 
@@ -69,15 +60,16 @@ class SubBot {
         version,
         logger: this.logger,
         auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, this.logger) },
-        printQRInTerminal: !this.options.usePairingCode && !this.mainConn,
+        printQRInTerminal: false,
         browser: ["Azura-Subbot", "Chrome", "2.0"],
         syncFullHistory: false,
       });
       this.socket.ev.on("creds.update", saveCreds);
       this.attachEvents();
-    } catch {
+    } catch (e) {
+      console.error(`[SubBot ${this.id}] Fallo al iniciar la conexión:`, e);
       this.cleanup();
-      SubBotManager.removeSubBot(this.sessionPath, true);
+      SubBotManager.removeSubBot(this.sessionPath, true); // Eliminar si falla al conectar
     }
   }
 
@@ -88,76 +80,29 @@ class SubBot {
   }
 
   async handleConnectionUpdate(update) {
-    const { connection, lastDisconnect, qr } = update;
-    const isNewCreation = this.options.isNew && this.mainConn;
-
-    if (isNewCreation && qr && !this.sentCode) {
-      this.sentCode = true;
-      try {
-        if (this.options.usePairingCode) {
-          const cleanId = this.id.split("@")[0].replace(/[^0-9]/g, "");
-          const code = await this.socket.requestPairingCode(cleanId);
-          await this.mainConn.sendMessage(
-            this.initialMsg.key.remoteJid,
-            {
-              video: { url: "https://cdn.russellxz.click/b0cbbbd3.mp4" },
-              caption:
-                "🔐 *Código generado:*\nAbre WhatsApp > Vincular dispositivo y pega el siguiente código:",
-              gifPlayback: true,
-            },
-            { quoted: this.initialMsg },
-          );
-          await sleep(1000);
-          await this.mainConn.sendMessage(
-            this.initialMsg.key.remoteJid,
-            { text: `\`\`\`${code}\`\`\`` },
-            { quoted: this.initialMsg },
-          );
-        } else {
-          const qrImage = await QRCode.toBuffer(qr);
-          await this.mainConn.sendMessage(
-            this.initialMsg.key.remoteJid,
-            {
-              image: qrImage,
-              caption:
-                "📲 Escanea este código QR desde *WhatsApp > Vincular dispositivo* para conectarte como sub-bot.",
-            },
-            { quoted: this.initialMsg },
-          );
-        }
-      } catch {
-        SubBotManager.removeSubBot(this.sessionPath, true);
-      }
-    }
+    const { connection, lastDisconnect } = update;
 
     if (connection === "open") {
       this.status = "open";
       this.retries = 0;
-      if (!isNewCreation) {
-        console.log(`✔️ Subbot ${this.id.split("@")[0]} online.`);
-      } else {
-        const ownerJid = `${this.socket.user.id.split(":")[0]}@s.whatsapp.net`;
-        await this.mainConn.sendMessage(
-          this.initialMsg.key.remoteJid,
-          {
-            text: "🤖 𝙎𝙐𝘽𝘽𝙊𝙏 𝘾𝙊𝙉𝙀𝘾𝙏𝘼𝘿𝙊 - AZURA ULTRA 2.0\n\n✅ 𝘽𝙞𝙚𝙣𝙫𝙚𝙣𝙞𝙙𝙤 𝙖𝙡 𝙨𝙞𝙨𝙩𝙚𝙢𝙖 𝙥𝙧𝙚𝙢𝙞𝙪𝙢 𝙙𝙚 AZURA ULTRA 2.0 𝘽𝙊𝙏 \n🛰️ 𝙏𝙪 𝙨𝙪𝙗𝙗𝙤т 𝙮𝙖 𝙚𝙨𝙩á 𝙚𝙣 𝙡í𝙣𝙚𝙖 𝙮 𝙤𝙥𝙚𝙧𝙖𝙩𝙞𝙫𝙤.\n\n📩 *𝙄𝙈𝙋𝙊𝙍𝙏𝘼𝙉𝙏𝙀* \n𝙍𝙚𝙫𝙞𝙨𝙖 𝙩𝙪 𝙢𝙚𝙣𝙨𝙖𝙟𝙚 𝙥𝙧𝙞𝙫𝙖𝙙𝙤. \n𝘼𝙝í 𝙚𝙣𝙘𝙤𝙣𝙩𝙧𝙖𝙧á𝙨 𝙞𝙣𝙨𝙩𝙧𝙪𝙘𝙘𝙞𝙤𝙣𝙚𝙨 𝙘𝙡𝙖𝙧𝙖𝙨 𝙙𝙚 𝙪𝙨𝙤. \n*Si no entiendes es porque la inteligencia te intenta alcanzar, pero tú eres más rápido que ella.* \n_𝙊 𝙨𝙚𝙖... 𝙚𝙧𝙚𝙨 𝙪𝙣 𝙗𝙤𝙗𝙤 UN TREMENDO ESTÚPIDO_ 🤖💀\n\n🛠️ 𝘾𝙤𝙢𝙖𝙣𝙙𝙤𝙨 𝙗á𝙨𝙞𝙘𝙤𝙨: \n• \`help\` → 𝘼𝙮𝙪𝙙𝙖 𝙜𝙚𝙣𝙚𝙧𝙖𝙡 \n• \`menu\` → 𝙇𝙞𝙨𝙩𝙖 𝙙𝙚 𝙘𝙤𝙢𝙖𝙣𝙙𝙤𝙨\n\nℹ️ 𝙈𝙤𝙙𝙤 𝙖𝙘𝙩𝙪𝙖𝙡: 𝙋𝙍𝙄𝙑𝘼𝘿𝙊 \n☑️ 𝙎ó𝙡𝙤 𝙩ú 𝙥𝙪𝙚𝙙𝙚𝙨 𝙪𝙨𝙖𝙧𝙡𝙤 𝙥𝙤𝙧 𝙖𝙝𝙤𝙧𝙖.\n🤡 *mira tu privado para que sepas\ncomo hacer que otros puedan usarlo* 🤡\n\n✨ *𝘾𝙖𝙢𝙗𝙞𝙖𝙧 𝙥𝙧𝙚𝙛𝙞𝙟𝙤:* \nUsa: \`.setprefix ✨\` \nDespués deberás usar ese nuevo prefijo para activar comandos. \n(𝙀𝙟: \`✨menu\`)\n\n🧹 *𝘽𝙤𝙧𝙧𝙖𝙧 𝙩𝙪 𝙨𝙚𝙨𝙞ó𝙣:* \n• \`.delbots\` \n• Solicita un nuevo código con: \`.code\` o \`.sercode\`\n\n💎 *BY 𝙎𝙠𝙮 𝙐𝙡𝙩𝙧𝙖 𝙋𝙡𝙪𝙨* 💎",
-          },
-          { quoted: this.initialMsg },
-        );
-        await this.mainConn.sendMessage(this.initialMsg.key.remoteJid, {
-          react: { text: "✅", key: this.initialMsg.key },
-        });
+      console.log(`✔️ Subbot ${this.id.split("@")[0]} online.`);
+
+      const ownerJid = `${this.socket.user.id.split(":")[0]}@s.whatsapp.net`;
+      try {
         await this.socket.sendMessage(ownerJid, {
-          text: "✨ ¡Hola! Bienvenido al sistema de SubBots Premium de Azura Ultra 2.0 ✨\n\n✅ Estado: tu SubBot ya está *en línea y conectado*.\nA continuación, algunas cosas importantes que debes saber para comenzar:\n\n📌 *IMPORTANTE*:\n🧠 Por defecto, el bot **solo se responde a sí mismo** en el chat privado.\nSi deseas que funcione en grupos, haz lo siguiente:\n\n🔹 Ve al grupo donde lo quieras usar.\n🔹 Escribe el comando: \`.addgrupo\`\n🔹 ¡Listo! Ahora el bot responderá a todos los miembros de ese grupo.\n\n👤 ¿Quieres que el bot también le responda a otras personas en privado?\n\n🔸 Usa el comando: \`.addlista número\`\n  Ejemplo: \`.addlista 5491123456789\`\n🔸 O responde (cita) un mensaje de la persona y escribe: \`.addlista\`\n🔸 Esto autorizará al bot a responderle directamente en su chat privado.\n\n🔧 ¿Deseas personalizar el símbolo o letra para activar los comandos?\n\n🔸 Usa: \`.setprefix\` seguido del nuevo prefijo que quieras usar.\n  Ejemplo: \`.setprefix ✨\`\n🔸 Una vez cambiado, deberás usar ese prefijo para todos los comandos.\n  (Por ejemplo, si pusiste \`✨\`, ahora escribirías \`✨menu\` en lugar de \`.menu\`)\n\n📖 Para ver la lista completa de comandos disponibles, simplemente escribe:\n\`.menu\` o \`.help\`\n\n🚀 ¡Disfruta del poder de Azura Ultra 2.0 y automatiza tu experiencia como nunca antes!",
+          text: "✨ ¡Hola! Bienvenido al sistema de SubBots Premium de Azura Ultra 2.0 ✨\n\n✅ Estado: tu SubBot ya está *en línea y conectado*.\nA continuación, algunas cosas importantes que debes saber para comenzar:\n\n📌 *IMPORTANTE*:\n🧠 Por defecto, el bot **solo se responde a sí mismo** en el chat privado.\nSi deseas que funcione en grupos, haz lo siguiente:\n\n🔹 Ve al grupo donde lo quieras usar.\n🔹 Escribe el comando: \`.addgrupo\`\n🔹 ¡Listo! Ahora el bot responderá a todos los miembros de ese grupo.\n\n👤 ¿Quieres que el bot también le responda a otras personas en privado?\n\n🔸 Usa el comando: \`.addlista número\`\n  Ejemplo: \`.addlista 5491123456789\`\n🔸 O responde (cita) un mensaje de la persona y escribe: \`.addlista\`\n🔸 Esto autorizará al bot a responderle directamente en su chat privado.\n\n🔧 ¿Deseas personalizar el símbolo o letra para activar los comandos?\n\n🔸 Usa: \`.setprefix\` seguido del nuevo prefijo que quieras usar.\n  Ejemplo: \`.setprefix ✨\`\n🔸 Una vez cambiado, deberás usar ese prefijo para todos los comandos.\n  (Por ejemplo, si pusiste \`✨\`, ahora escribirías \`✨menu\` en lugar de \`.menu\`)\n\n📖 Para ver la lista completa de comandos disponibles, simplemente escribe:\n\`.menu\` o \`.help\`\n\n🚀 ¡Disfruta del poder de Azura Ultra 2.0 y automatiza tu experiencia como nunca antes!",
         });
+      } catch (e) {
+        console.error(
+          `[SubBot ${this.id}] No se pudo enviar el mensaje de bienvenida a sí mismo:`,
+          e,
+        );
       }
     }
 
     if (connection === "close") {
       const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-      const wasConnected = this.status === "open";
       this.status = "closed";
-
       this.cleanup();
 
       const fatalCodes = [
@@ -167,28 +112,17 @@ class SubBot {
       ];
 
       if (fatalCodes.includes(reason)) {
-        if (isNewCreation && !wasConnected) {
-          await this.mainConn.sendMessage(
-            this.initialMsg.key.remoteJid,
-            {
-              text: `⚠️ *Sesión eliminada.*\nCausa: ${reason}.\nUsa \`.sercode\` para volver a conectar.`,
-            },
-            { quoted: this.initialMsg },
-          );
-        }
+        console.log(
+          `[SubBot ${this.id}] Desconectado por razón fatal (${reason}). Eliminando sesión.`,
+        );
         SubBotManager.removeSubBot(this.sessionPath, true);
       } else if (reason === DisconnectReason.restartRequired) {
+        console.log(`[SubBot ${this.id}] Requiere reinicio, reconectando...`);
         this.connect();
       } else {
-        if (isNewCreation && !wasConnected) {
-          await this.mainConn.sendMessage(
-            this.initialMsg.key.remoteJid,
-            {
-              text: `╭───〔 *⚠️ SUBBOT* 〕───╮\n│\n│⚠️ *Problema de conexión:* ${reason}\n│ Intentando reconectar...\n│\n│ 🔄 Si sigues en problemas, ejecuta:\n│ .delbots\n│ para eliminar tu sesión y conecta de nuevo con:\n│ .sercode / .code\n│\n╰────✦ *Sky Ultra Plus* ✦────╯`,
-            },
-            { quoted: this.initialMsg },
-          );
-        }
+        console.log(
+          `[SubBot ${this.id}] Desconexión inesperada (${reason}). Intentando reconectar...`,
+        );
         this.retries++;
         setTimeout(() => this.connect(), 5000 * this.retries);
       }
@@ -528,7 +462,6 @@ class SubBot {
       console.error(`[SubBot ${this.id}] Error en bienvenida/despedida:`, err);
     }
   }
-
   cleanup() {
     if (this.socket) {
       this.socket.ev.removeAllListeners();
@@ -550,52 +483,25 @@ const SubBotManager = {
   sessionBaseDir: path.join(__dirname, "./subbots"),
   MAX_SUBBOTS: 200,
 
-  createSubBot(sessionId, options = {}) {
-    if (!fs.existsSync(this.sessionBaseDir)) {
-      fs.mkdirSync(this.sessionBaseDir, { recursive: true });
-    }
+  createSubBot(sessionId) {
     const sessionPath = path.join(this.sessionBaseDir, sessionId);
+
     if (this.subBots.has(sessionPath)) {
-      if (options.mainConn) {
-        options.mainConn.sendMessage(
-          options.initialMsg.key.remoteJid,
-          {
-            text: "ℹ️ Ese subbot ya existe. usa: `.delbots` para borrar tu sesión actual y vuelve a pedir codigo con:(.code o .sercode)",
-          },
-          { quoted: options.initialMsg },
-        );
-      }
+      console.log(`[Manager] Intento de crear un subbot que ya está activo: ${sessionId}`);
       return;
     }
+
     if (!fs.existsSync(this.sessionBaseDir)) {
       fs.mkdirSync(this.sessionBaseDir, { recursive: true });
     }
-    const subbotDirs = fs
-      .readdirSync(this.sessionBaseDir)
-      .filter((d) => fs.existsSync(path.join(this.sessionBaseDir, d, "creds.json")));
-    if (subbotDirs.length >= this.MAX_SUBBOTS) {
-      if (options.mainConn) {
-        options.mainConn.sendMessage(
-          options.initialMsg.key.remoteJid,
-          {
-            text: `🚫 *Límite alcanzado:* existen ${subbotDirs.length}/${this.MAX_SUBBOTS} sesiones activas.`,
-          },
-          { quoted: options.initialMsg },
-        );
-      }
+
+    if (this.subBots.size >= this.MAX_SUBBOTS) {
+      console.error("[Manager] Límite de SubBots alcanzado. No se puede crear uno nuevo.");
       return;
     }
 
-    const restantes = this.MAX_SUBBOTS - subbotDirs.length;
-    if (options.mainConn) {
-      options.mainConn.sendMessage(
-        options.initialMsg.key.remoteJid,
-        { text: `ℹ️ Quedan *${restantes}* espacios disponibles.` },
-        { quoted: options.initialMsg },
-      );
-    }
-
-    const subBot = new SubBot(sessionPath, options);
+    console.log(`[Manager] Creando y conectando subbot para la sesión: ${sessionId}`);
+    const subBot = new SubBot(sessionPath);
     this.subBots.set(sessionPath, subBot);
     subBot.connect();
   },
@@ -603,6 +509,7 @@ const SubBotManager = {
   removeSubBot(sessionPath, deleteFiles = false) {
     const subBot = this.subBots.get(sessionPath);
     if (subBot) {
+      console.log(`[Manager] Eliminando subbot: ${subBot.id}`);
       if (deleteFiles) {
         subBot.destroy();
       } else {
@@ -627,7 +534,9 @@ const SubBotManager = {
     const sessionDirs = fs
       .readdirSync(this.sessionBaseDir)
       .filter((dir) => fs.existsSync(path.join(this.sessionBaseDir, dir, "creds.json")));
-    sessionDirs.forEach((dir) => this.createSubBot(dir, { isNew: false }));
+
+    console.log(`[Manager] Cargando ${sessionDirs.length} sesiones existentes...`);
+    sessionDirs.forEach((dir) => this.createSubBot(dir));
   },
 };
 
