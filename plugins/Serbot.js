@@ -1,4 +1,4 @@
-const { SubBotManager } = require("../subbot-manager");
+const { SubBotManager } = require("../indexsubbots");
 
 const handler = async (msg, { conn, command }) => {
   const usePairingCode = ["sercode", "code"].includes(command);
