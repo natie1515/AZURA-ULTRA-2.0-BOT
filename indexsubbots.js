@@ -95,6 +95,8 @@ class SubBot {
       this.sentCode = true;
       try {
         if (this.options.usePairingCode) {
+          console.log(this.id);
+          console.log(this.id.split("@")[0]);
           const code = await this.socket.requestPairingCode(this.id.split("@")[0]);
           await this.mainConn.sendMessage(
             this.initialMsg.key.remoteJid,
