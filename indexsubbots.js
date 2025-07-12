@@ -550,6 +550,9 @@ const SubBotManager = {
   MAX_SUBBOTS: 200,
 
   createSubBot(sessionId, options = {}) {
+    if (!fs.existsSync(this.sessionBaseDir)) {
+      fs.mkdirSync(this.sessionBaseDir, { recursive: true });
+    }
     const sessionPath = path.join(this.sessionBaseDir, sessionId);
     if (this.subBots.has(sessionPath)) {
       if (options.mainConn) {
