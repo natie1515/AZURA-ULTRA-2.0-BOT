@@ -12,6 +12,7 @@ const {
 const { Boom } = require("@hapi/boom");
 
 const subBots = [];
+const reconnectionAttempts = new Map();
 
 function loadSubPlugins() {
   const out = [];
@@ -70,6 +71,7 @@ async function iniciarSubBot(sessionPath) {
   subSock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
     if (connection === "open") {
       console.log(`✔️ Subbot ${dir} online.`);
+      reconnectionAttempts.set(sessionPath, 0);
     }
     if (connection === "close") {
       const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
@@ -82,16 +84,41 @@ async function iniciarSubBot(sessionPath) {
         statusCode !== 403;
 
       if (shouldReconnect) {
-        console.log(`💱 Intentando reconectar a ${dir}...`);
-        const index = subBots.indexOf(sessionPath);
-        if (index !== -1) {
-          subBots.splice(index, 1);
+        if (!fs.existsSync(sessionPath)) {
+          console.log(`ℹ️ La sesión para ${dir} fue eliminada. Cancelando reconexión.`);
+          reconnectionAttempts.delete(sessionPath);
+          const index = subBots.indexOf(sessionPath);
+          if (index !== -1) subBots.splice(index, 1);
+          return;
         }
-        setTimeout(() => {
-          iniciarSubBot(sessionPath).catch((e) =>
-            console.error(`Error al reiniciar subbot ${dir}:`, e),
+
+        const attempts = (reconnectionAttempts.get(sessionPath) || 0) + 1;
+        reconnectionAttempts.set(sessionPath, attempts);
+
+        if (attempts <= 3) {
+          console.log(`💱 Intentando reconectar a ${dir}... (Intento ${attempts}/3)`);
+          const index = subBots.indexOf(sessionPath);
+          if (index !== -1) {
+            subBots.splice(index, 1);
+          }
+          setTimeout(() => {
+            iniciarSubBot(sessionPath).catch((e) =>
+              console.error(`Error al reiniciar subbot ${dir}:`, e),
+            );
+          }, 5000);
+        } else {
+          console.log(
+            `❌ Límite de reconexión alcanzado para ${dir}. Eliminando sesión permanentemente.`,
           );
-        }, 5000);
+          const index = subBots.indexOf(sessionPath);
+          if (index !== -1) {
+            subBots.splice(index, 1);
+          }
+          if (fs.existsSync(sessionPath)) {
+            fs.rmSync(sessionPath, { recursive: true, force: true });
+          }
+          reconnectionAttempts.delete(sessionPath);
+        }
       } else {
         console.log(`❌ No se pudo reconectar con el bot ${dir}. Eliminando sesión.`);
         const index = subBots.indexOf(sessionPath);
@@ -101,13 +128,13 @@ async function iniciarSubBot(sessionPath) {
         if (fs.existsSync(sessionPath)) {
           fs.rmSync(sessionPath, { recursive: true, force: true });
         }
+        reconnectionAttempts.delete(sessionPath);
       }
     }
   });
 
   await socketEvents(subSock);
 }
-
 async function socketEvents(subSock) {
   subSock.ev.on("group-participants.update", async (update) => {
     try {
@@ -501,4 +528,4 @@ async function cargarSubBots() {
   await Promise.all(dirs.map((d) => iniciarSubBot(path.join(base, d))));
 }
 
-module.exports = { subBots, cargarSubBots, socketEvents, iniciarSubBot };
+module.exports = { subBots, cargarSubBots, socketEvents, iniciarSubBot, reconnectionAttempts };

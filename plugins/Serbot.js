@@ -11,7 +11,7 @@ const {
   DisconnectReason,
 } = require("@whiskeysockets/baileys");
 
-const { subBots, socketEvents } = require("../indexsubbots");
+const { subBots, socketEvents, reconnectionAttempts } = require("../indexsubbots");
 
 const MAX_SUBBOTS = 200;
 
@@ -72,12 +72,13 @@ const handler = async (msg, { conn, command, sock }) => {
 
       await conn.sendMessage(msg.key.remoteJid, { react: { text: "⌛", key: msg.key } });
 
+      let socky;
       async function createSocket() {
         const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
         const { version } = await fetchLatestBaileysVersion();
         const logger = pino({ level: "silent" });
 
-        const socky = makeWASocket({
+        socky = makeWASocket({
           version,
           logger,
           auth: {
@@ -93,9 +94,30 @@ const handler = async (msg, { conn, command, sock }) => {
       }
 
       let readyBot = false;
+      let connectionTimeout;
 
       async function setupSocketEvents() {
         const { socky, saveCreds } = await createSocket();
+
+        connectionTimeout = setTimeout(async () => {
+          if (!readyBot) {
+            await conn.sendMessage(
+              msg.key.remoteJid,
+              {
+                text: "⏰ *Tiempo de espera agotado.*\nNo se escaneó el código a tiempo. Vuelve a intentarlo.",
+              },
+              { quoted: msg },
+            );
+
+            const index = subBots.indexOf(sessionPath);
+            if (index !== -1) subBots.splice(index, 1);
+
+            socky.end(new Error("Timeout"));
+            if (fs.existsSync(sessionPath)) {
+              fs.rmSync(sessionPath, { recursive: true, force: true });
+            }
+          }
+        }, 60000);
 
         socky.ev.on("connection.update", async ({ qr, connection, lastDisconnect }) => {
           if (qr && !sentCodeMessage) {
@@ -134,6 +156,8 @@ const handler = async (msg, { conn, command, sock }) => {
 
           if (connection === "open") {
             readyBot = true;
+            clearTimeout(connectionTimeout);
+            reconnectionAttempts.set(sessionPath, 0);
             await conn.sendMessage(
               msg.key.remoteJid,
               {
@@ -213,6 +237,7 @@ Después deberás usar ese nuevo prefijo para activar comandos.  
           }
 
           if (connection === "close") {
+            clearTimeout(connectionTimeout);
             const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
             console.log(`❌ Subbot ${sessionPath} desconectado (status: ${statusCode}).`);
 
@@ -223,12 +248,16 @@ Después deberás usar ese nuevo prefijo para activar comandos.  
               statusCode !== 403;
 
             if (shouldReconnect) {
-              console.log("💱 Intentando reconectar!");
-              if (!readyBot && statusCode !== DisconnectReason.restartRequired) {
-                await conn.sendMessage(
-                  msg.key.remoteJid,
-                  {
-                    text: `╭───〔 *⚠️ SUBBOT* 〕───╮
+              const attempts = (reconnectionAttempts.get(sessionPath) || 0) + 1;
+              reconnectionAttempts.set(sessionPath, attempts);
+
+              if (attempts <= 3) {
+                console.log(`💱 Intentando reconectar! (Intento ${attempts}/3)`);
+                if (!readyBot && statusCode !== DisconnectReason.restartRequired) {
+                  await conn.sendMessage(
+                    msg.key.remoteJid,
+                    {
+                      text: `╭───〔 *⚠️ SUBBOT* 〕───╮
 │
 │⚠️ *Problema de conexión detectado:*
 │ Razón: ${statusCode}
@@ -240,21 +269,44 @@ Después deberás usar ese nuevo prefijo para activar comandos.  
 │ #sercode / #code
 │
 ╰────✦ *Sky Ultra Plus* ✦────╯`,
+                    },
+                    { quoted: msg },
+                  );
+                }
+                const index = subBots.indexOf(sessionPath);
+                if (index !== -1) subBots.splice(index, 1);
+
+                setTimeout(() => {
+                  if (fs.existsSync(sessionPath)) {
+                    subBots.push(sessionPath);
+                    setupSocketEvents().catch((e) => console.error("Error en reconexión:", e));
+                  } else {
+                    console.log(`ℹ️ La sesión ${sessionPath} fue eliminada. Cancelando reconexión.`);
+                    reconnectionAttempts.delete(sessionPath);
+                  }
+                }, 3000);
+              } else {
+                console.log(
+                  `❌ Límite de reconexión alcanzado para ${sessionPath}. Eliminando sesión.`,
+                );
+                await conn.sendMessage(
+                  msg.key.remoteJid,
+                  {
+                    text: `⚠️ *Límite de reconexión alcanzado.*\nLa sesión ha sido eliminada. Usa ${global.prefix}sercode para volver a conectar.`,
                   },
                   { quoted: msg },
                 );
-              }
-              const index = subBots.indexOf(sessionPath);
-              if (index !== -1) {
-                subBots.splice(index, 1);
-              }
 
-              setTimeout(() => {
-                subBots.push(sessionPath);
-                setupSocketEvents().catch((e) => console.error("Error en reconexión:", e));
-              }, 3000);
+                const index = subBots.indexOf(sessionPath);
+                if (index !== -1) subBots.splice(index, 1);
+
+                if (fs.existsSync(sessionPath)) {
+                  fs.rmSync(sessionPath, { recursive: true, force: true });
+                }
+                reconnectionAttempts.delete(sessionPath);
+              }
             } else {
-              console.log(`❌ No se pudo reconectar con el bot ${sessionPath}.`);
+              console.log(`❌ No se puede reconectar con el bot ${sessionPath}.`);
               if (!readyBot) {
                 await conn.sendMessage(
                   msg.key.remoteJid,
@@ -265,9 +317,7 @@ Después deberás usar ese nuevo prefijo para activar comandos.  
                 );
               }
               const index = subBots.indexOf(sessionPath);
-              if (index !== -1) {
-                subBots.splice(index, 1);
-              }
+              if (index !== -1) subBots.splice(index, 1);
               if (fs.existsSync(sessionPath)) {
                 fs.rmSync(sessionPath, { recursive: true, force: true });
               }
