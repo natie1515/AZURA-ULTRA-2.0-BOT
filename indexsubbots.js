@@ -424,21 +424,22 @@ if (isGroup) {
     const grupoPath = path.resolve("./grupo.json");
     const prefixPath = path.resolve("./prefixes.json");
     const activosPath = path.resolve("./activossubbots.json");
-
     const rawID = subSock.user?.id || "";
     const subbotID = `${rawID.split(":")[0]}@s.whatsapp.net`;
     const botNum = rawID.split(":")[0].replace(/[^0-9]/g, "");
+
     const messageText =
       m.message?.conversation ||
       m.message?.extendedTextMessage?.text ||
       m.message?.imageMessage?.caption ||
       m.message?.videoMessage?.caption ||
       "";
-    
+
     let dataPrefijos = {};
     if (fs.existsSync(prefixPath)) {
       dataPrefijos = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
     }
+
     const customPrefix = dataPrefijos[subbotID];
     const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
     const usedPrefix = allowedPrefixes.find((p) => messageText.startsWith(p));
@@ -455,19 +456,19 @@ if (isGroup) {
 
     const gruposPermitidos = Array.isArray(dataGrupos[subbotID]) ? dataGrupos[subbotID] : [];
 
-    const isOwner = global.owner?.some(([n]) => String(n) === senderNum);
+    const isOwner = global.owner?.some(([id]) => id === senderNum);
 
-    let dataActivos = {};
+    // 🔥 Lógica del modo subbots
+    let activos = {};
     if (fs.existsSync(activosPath)) {
-      dataActivos = JSON.parse(fs.readFileSync(activosPath, "utf-8"));
+      activos = JSON.parse(fs.readFileSync(activosPath, "utf-8"));
     }
-    const modoActivo = dataActivos.subbots?.[subbotID]?.[from] === true;
+
+    const modoActivo = activos?.subbots?.[subbotID]?.[from] === true;
 
     if (
-      senderNum !== botNum &&
-      !gruposPermitidos.includes(from) &&
-      !allowedCommands.includes(command) &&
-      !isOwner && !modoActivo
+      !modoActivo || // si el modo no está activo...
+      (!isOwner && !gruposPermitidos.includes(from) && !allowedCommands.includes(command))
     ) {
       return;
     }
