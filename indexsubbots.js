@@ -418,7 +418,7 @@ async function socketEvents(subSock) {
           return;
         }
       }
-      // === INICIO LÓGICA GRUPO AUTORIZADO ===
+// === INICIO LÓGICA GRUPO AUTORIZADO ===
 if (isGroup) {
   try {
     const grupoPath = path.resolve("./grupo.json");
@@ -434,14 +434,11 @@ if (isGroup) {
       m.message?.imageMessage?.caption ||
       m.message?.videoMessage?.caption ||
       "";
-
+    
     let dataPrefijos = {};
-    try {
-      if (fs.existsSync(prefixPath)) {
-        dataPrefijos = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
-      }
-    } catch (_) {}
-
+    if (fs.existsSync(prefixPath)) {
+      dataPrefijos = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
+    }
     const customPrefix = dataPrefijos[subbotID];
     const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
     const usedPrefix = allowedPrefixes.find((p) => messageText.startsWith(p));
@@ -458,34 +455,29 @@ if (isGroup) {
 
     const gruposPermitidos = Array.isArray(dataGrupos[subbotID]) ? dataGrupos[subbotID] : [];
 
-    // === NUEVO: permitir isOwner si el modo subbots está activado en ese grupo ===
-    let isOwner = false;
-    try {
-      const ownerList = global.owner?.map(([n]) => String(n)) || [];
-      isOwner = ownerList.includes(senderNum);
-    } catch {}
+    const isOwner = global.owner?.some(([n]) => String(n) === senderNum);
 
-    let modoActivo = false;
-    try {
-      if (fs.existsSync(activosPath)) {
-        const activos = JSON.parse(fs.readFileSync(activosPath, "utf-8"));
-        modoActivo = !!activos[subbotID]?.subbots?.[from];
-      }
-    } catch {}
+    let dataActivos = {};
+    if (fs.existsSync(activosPath)) {
+      dataActivos = JSON.parse(fs.readFileSync(activosPath, "utf-8"));
+    }
+    const modoActivo = dataActivos.subbots?.[subbotID]?.[from] === true;
 
     if (
       senderNum !== botNum &&
       !gruposPermitidos.includes(from) &&
       !allowedCommands.includes(command) &&
-      !(isOwner && modoActivo)
+      !isOwner && !modoActivo
     ) {
       return;
     }
+
   } catch (err) {
     console.error("❌ Error en verificación de grupo autorizado:", err);
     return;
   }
 }
+// === FIN LÓGICA GRUPO AUTORIZADO ===
       // === INICIO LÓGICA PRIVADO AUTORIZADO ===
       if (!isGroup) {
         const isFromSelf = m.key.fromMe;
