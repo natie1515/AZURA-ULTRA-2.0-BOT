@@ -13673,7 +13673,7 @@ case 'info':
         
         
 
-case "ping":
+case "pong":
     try {
         const now = new Date();
         const options = { 
@@ -13720,7 +13720,7 @@ case "ping":
         // Enviar mensaje con imagen y detalles del servidor
         await sock.sendMessage(msg.key.remoteJid, {
             image: { url: "https://cdn.dorratz.com/files/1740372224017.jpg" }, 
-            caption: `🏓 *Pong! El bot está activo.*\n\n` +
+            caption: `🏓 *Ping! El bot está activo.*\n\n` +
                      `📅 *Fecha y hora actual:* ${formattedDate}\n\n` +
                      `🕒 *Tiempo Activo:* ${uptimeFormatted}\n\n` +
                      `💻 *Información del Servidor:*\n` +
