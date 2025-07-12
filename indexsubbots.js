@@ -72,31 +72,35 @@ async function iniciarSubBot(sessionPath) {
       console.log(`✔️ Subbot ${dir} online.`);
     }
     if (connection === "close") {
-      const statusCode =
-        lastDisconnect?.error instanceof Boom
-          ? lastDisconnect.error.output.statusCode
-          : lastDisconnect?.error;
+      const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
       console.log(`❌ Subbot ${dir} desconectado (status: ${statusCode}).`);
-      console.log("💱 Tratando de reconectar!");
-      const isFatalError = [
-        DisconnectReason.badSession,
-        DisconnectReason.loggedOut,
-        DisconnectReason.multideviceMismatch,
-        DisconnectReason.forbidden,
-      ].includes(statusCode);
-      if (!isFatalError) {
+
+      const shouldReconnect =
+        statusCode !== DisconnectReason.loggedOut &&
+        statusCode !== DisconnectReason.badSession &&
+        statusCode !== DisconnectReason.forbidden &&
+        statusCode !== 403;
+
+      if (shouldReconnect) {
+        console.log(`💱 Intentando reconectar a ${dir}...`);
         const index = subBots.indexOf(sessionPath);
         if (index !== -1) {
           subBots.splice(index, 1);
         }
-        await iniciarSubBot(sessionPath);
+        setTimeout(() => {
+          iniciarSubBot(sessionPath).catch((e) =>
+            console.error(`Error al reiniciar subbot ${dir}:`, e),
+          );
+        }, 5000);
       } else {
-        console.log(`❌ No se pudo reconectar con el bot ${dir}.`);
+        console.log(`❌ No se pudo reconectar con el bot ${dir}. Eliminando sesión.`);
         const index = subBots.indexOf(sessionPath);
         if (index !== -1) {
           subBots.splice(index, 1);
         }
-        fs.rmSync(sessionPath, { recursive: true, force: true });
+        if (fs.existsSync(sessionPath)) {
+          fs.rmSync(sessionPath, { recursive: true, force: true });
+        }
       }
     }
   });
