@@ -441,7 +441,7 @@ if (isGroup) {
       if (fs.existsSync(prefixPath)) {
         dataPrefijos = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
       }
-    } catch (_) {}
+    } catch {}
 
     const customPrefix = dataPrefijos[subbotID];
     const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
@@ -460,7 +460,7 @@ if (isGroup) {
     let modoActivo = false;
     if (fs.existsSync(activosPath)) {
       const activos = JSON.parse(fs.readFileSync(activosPath, "utf-8"));
-      modoActivo = activos?.subbots?.[subbotID]?.[from] === true;
+      modoActivo = activos[from] === true;
     }
 
     const gruposPermitidos = Array.isArray(dataGrupos[subbotID]) ? dataGrupos[subbotID] : [];
@@ -473,7 +473,7 @@ if (isGroup) {
       !allowedCommands.includes(command) &&
       !(modoActivo && isOwner)
     ) {
-      return; // NO autorizado
+      return;
     }
 
   } catch (err) {
