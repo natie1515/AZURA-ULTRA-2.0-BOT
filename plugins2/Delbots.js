@@ -2,7 +2,7 @@ const path = require("path");
 const { SubBotManager } = require("../indexsubbots");
 
 const handler = async (msg, { conn }) => {
-  const sessionId = msg.sender;
+  const sessionId = msg.key?.participant || msg.key.remoteJid;
   const sessionPath = path.join(SubBotManager.sessionBaseDir, sessionId);
 
   const subbotExists = SubBotManager.getSubBot(sessionPath);
