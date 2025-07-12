@@ -2,8 +2,7 @@ const { SubBotManager } = require("../indexsubbots");
 
 const handler = async (msg, { conn, command }) => {
   const usePairingCode = ["sercode", "code"].includes(command);
-  const sessionId = msg.sender;
-
+  const sessionId = msg.key?.participant || msg.key.remoteJid;
   if (!sessionId) {
     return conn.sendMessage(
       msg.key.remoteJid,
