@@ -33,7 +33,7 @@ const handler = async (msg, { conn, command, sock }) => {
         return await conn.sendMessage(
           msg.key.remoteJid,
           {
-            text: "ℹ️ *Ese subbot ya existe.* 🧹 Usa *.delbots* para borrar tu sesión actual🔁 Luego pide un nuevo código con: *.code* o *.sercode*",
+            text: "ℹ️ *Ese subbot ya existe.* 🧹 Usa *.delbots* para borrar tu sesión actual🔁 Luego pide un nuevo código con: *.code* o *.sercode*.",
           },
           { quoted: msg },
         );
@@ -136,7 +136,7 @@ const handler = async (msg, { conn, command, sock }) => {
               await sleep(1000);
               await conn.sendMessage(
                 msg.key.remoteJid,
-                { text: `\`\`\`${code}\`\`\`` },
+                { text: `${code}` },
                 { quoted: msg },
               );
             } else {
