@@ -70,6 +70,8 @@ const handler = async (msg, { conn }) => {
 ┃ ✦ ${usedPrefix}𝘸𝘦𝘭𝘤𝘰𝘮𝘦 on/off
 ┃ ✦ ${usedPrefix}𝘵𝘢𝘨𝘢𝘭𝘭 / ${usedPrefix}𝘵𝘰𝘥𝘰𝘴
 ┃ ✦ ${usedPrefix}𝘥𝘢𝘮𝘦𝘭𝘪𝘯𝘬 / ${usedPrefix}𝘢𝘯𝘵𝘪𝘥𝘦𝘭𝘦𝘵𝘦
+┃ ✦ ${usedPrefix}addco(agrega comando a stickerz)
+┃ ✦ ${usedPrefix}delco (elimina el comando)
 ┗━━━━━━━━━━━━━
 
 ┏━━🎮 𝗝𝘂𝗲𝗴𝗼𝘀
@@ -148,6 +150,8 @@ const handler = async (msg, { conn }) => {
 ⟢ ${usedPrefix}infogrupo
 ⟢ ${usedPrefix}damelink
 ⟢ ${usedPrefix}antidelete on o off
+⟢ ${usedPrefix}addco (agrega comando a stickerz)
+⟢ ${usedPrefix}delco (elimina comando)
 
 〔 Comandos De Juegos 〕
 ⟢ ${usedPrefix}verdad
