@@ -482,63 +482,58 @@ if (isGroup) {
   }
 }
 // === FIN LÓGICA GRUPO AUTORIZADO ===
-// === INICIO LÓGICA COMANDOS DESDE STICKER (SUBBOTS) ===
+// === INICIO LÓGICA COMANDOS DESDE STICKER (SUBBOT) ===
 try {
   const rawID = subSock.user?.id || "";
   const subbotID = `${rawID.split(":")[0]}@s.whatsapp.net`;
   const jsonPath = "./comandossubbots.json";
 
-  if (!fs.existsSync(jsonPath)) return;
-  if (!m.message?.stickerMessage) return;
+  if (m.message?.stickerMessage && fs.existsSync(jsonPath)) {
+    const fileSha = m.message.stickerMessage.fileSha256?.toString("base64");
+    const comandosData = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
 
-  const fileSha = m.message.stickerMessage.fileSha256?.toString("base64");
-  const comandosData = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+    if (comandosData[subbotID] && comandosData[subbotID][fileSha]) {
+      const cmd = comandosData[subbotID][fileSha];
+      const messageText = cmd.toLowerCase().trim();
+      const parts = messageText.split(" ");
+      const mainCommand = parts[0];
+      const args = parts.slice(1);
 
-  if (!comandosData[subbotID]) return;
+      const chatId = m.key.remoteJid;
+      const sender = m.key.participant || m.key.remoteJid;
+      const contextInfo = m.message?.stickerMessage?.contextInfo || {};
 
-  const cmd = comandosData[subbotID][fileSha];
-  if (!cmd) return;
-
-  const messageText = cmd.toLowerCase().trim();
-  const parts = messageText.split(" ");
-  const mainCommand = parts[0];
-  const args = parts.slice(1);
-
-  const chatId = m.key.remoteJid;
-  const sender = m.key.participant || m.key.remoteJid;
-
-  const contextInfo = m.message?.stickerMessage?.contextInfo || {};
-  const quotedMsg = contextInfo.quotedMessage || null;
-  const quotedParticipant = contextInfo.participant || null;
-
-  const fakeMessage = {
-    ...m,
-    message: {
-      extendedTextMessage: {
+      const fakeMessage = {
+        ...m,
+        message: {
+          extendedTextMessage: {
+            text: messageText,
+            contextInfo: {
+              quotedMessage: contextInfo.quotedMessage || null,
+              participant: contextInfo.participant || null,
+              stanzaId: contextInfo.stanzaId || "",
+              remoteJid: contextInfo.remoteJid || chatId
+            }
+          }
+        },
+        body: messageText,
         text: messageText,
-        contextInfo: {
-          quotedMessage: quotedMsg,
-          participant: quotedParticipant,
-          stanzaId: contextInfo.stanzaId || "",
-          remoteJid: contextInfo.remoteJid || chatId
+        command: mainCommand,
+        key: {
+          ...m.key,
+          fromMe: false,
+          participant: sender
         }
-      }
-    },
-    body: messageText,
-    text: messageText,
-    command: mainCommand,
-    key: {
-      ...m.key,
-      fromMe: false,
-      participant: sender
-    }
-  };
+      };
 
-  await handleSubCommand(subSock, fakeMessage, mainCommand, args);
+      await handleSubCommand(subSock, fakeMessage, mainCommand, args);
+      return; // ⛔️ IMPORTANTE: solo si se ejecutó un comando desde sticker, salta lo demás
+    }
+  }
 } catch (err) {
-  console.error("❌ Error al ejecutar comando desde sticker (subbot):", err);
+  console.error("❌ Error ejecutando comando desde sticker:", err);
 }
-// === FIN LÓGICA COMANDOS DESDE STICKER (SUBBOTS) ===
+// === FIN LÓGICA COMANDOS DESDE STICKER (SUBBOT) ===
       
       // === INICIO LÓGICA PRIVADO AUTORIZADO ===
       if (!isGroup) {
