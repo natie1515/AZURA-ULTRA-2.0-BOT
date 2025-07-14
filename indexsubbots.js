@@ -486,52 +486,52 @@ if (isGroup) {
 try {
   const rawID = subSock.user?.id || "";
   const subbotID = `${rawID.split(":")[0]}@s.whatsapp.net`;
-  const jsonPath = "./comandossubbots.json";
+  const jsonPath = path.resolve("./comandossubbots.json");
 
-  if (m.message?.stickerMessage && fs.existsSync(jsonPath)) {
-    const fileSha = m.message.stickerMessage.fileSha256?.toString("base64");
-    const comandosData = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+  if (!m.message?.stickerMessage || !fs.existsSync(jsonPath)) return;
 
-    if (comandosData[subbotID] && comandosData[subbotID][fileSha]) {
-      const cmd = comandosData[subbotID][fileSha];
-      const messageText = cmd.toLowerCase().trim();
-      const parts = messageText.split(" ");
-      const mainCommand = parts[0];
-      const args = parts.slice(1);
+  const fileSha = m.message.stickerMessage.fileSha256?.toString("base64");
+  const comandosData = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
 
-      const chatId = m.key.remoteJid;
-      const sender = m.key.participant || m.key.remoteJid;
-      const contextInfo = m.message?.stickerMessage?.contextInfo || {};
+  if (!comandosData[subbotID] || !comandosData[subbotID][fileSha]) return;
 
-      const fakeMessage = {
-        ...m,
-        message: {
-          extendedTextMessage: {
-            text: messageText,
-            contextInfo: {
-              quotedMessage: contextInfo.quotedMessage || null,
-              participant: contextInfo.participant || null,
-              stanzaId: contextInfo.stanzaId || "",
-              remoteJid: contextInfo.remoteJid || chatId
-            }
-          }
-        },
-        body: messageText,
+  const cmd = comandosData[subbotID][fileSha];
+  const messageText = cmd.toLowerCase().trim();
+  const parts = messageText.split(" ");
+  const mainCommand = parts[0];
+  const args = parts.slice(1);
+
+  const chatId = m.key.remoteJid;
+  const sender = m.key.participant || m.key.remoteJid;
+  const contextInfo = m.message?.stickerMessage?.contextInfo || {};
+
+  const fakeMessage = {
+    ...m,
+    message: {
+      extendedTextMessage: {
         text: messageText,
-        command: mainCommand,
-        key: {
-          ...m.key,
-          fromMe: false,
-          participant: sender
+        contextInfo: {
+          quotedMessage: contextInfo.quotedMessage || null,
+          participant: contextInfo.participant || null,
+          stanzaId: contextInfo.stanzaId || "",
+          remoteJid: contextInfo.remoteJid || chatId
         }
-      };
-
-      await handleSubCommand(subSock, fakeMessage, mainCommand, args);
-      return; // ⛔️ IMPORTANTE: solo si se ejecutó un comando desde sticker, salta lo demás
+      }
+    },
+    body: messageText,
+    text: messageText,
+    command: mainCommand,
+    key: {
+      ...m.key,
+      fromMe: false,
+      participant: sender
     }
-  }
+  };
+
+  await handleSubCommand(subSock, fakeMessage, mainCommand, args);
+  return; // ⛔️ Importante: no ejecutar más lógica después
 } catch (err) {
-  console.error("❌ Error ejecutando comando desde sticker:", err);
+  console.error("❌ Error ejecutando comando desde sticker (subbot):", err);
 }
 // === FIN LÓGICA COMANDOS DESDE STICKER (SUBBOT) ===
       
