@@ -483,35 +483,24 @@ if (isGroup) {
 }
 // === FIN LÓGICA GRUPO AUTORIZADO ===
 
-// comando stikerz unicio logica      
+// === LÓGICA COMANDOS DESDE STICKER (SUBBOT) ===
 try {
   const rawID = subSock.user?.id || "";
   const subbotID = `${rawID.split(":")[0]}@s.whatsapp.net`;
   const jsonPath = path.resolve("./comandossubbots.json");
-  const prefixPath = path.resolve("./prefixes.json");
 
-  const chatId = m.key.remoteJid;
-  const sender = m.key.participant || chatId;
-
-  let dataPrefijos = {};
-  try {
-    if (fs.existsSync(prefixPath)) {
-      dataPrefijos = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
-    }
-  } catch {}
-  const customPrefix = dataPrefijos[subbotID];
-  const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
-
-  // === 1. LÓGICA STICKER ASOCIADO ===
   if (m.message?.stickerMessage && fs.existsSync(jsonPath)) {
     const fileSha = m.message.stickerMessage.fileSha256?.toString("base64");
-    const data = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+    const comandosData = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
 
-    if (data?.[subbotID]?.[fileSha]) {
-      const cmdText = data[subbotID][fileSha];
-      const parts = cmdText.trim().toLowerCase().split(" ");
-      const mainCommand = parts[0];
+    if (comandosData?.[subbotID]?.[fileSha]) {
+      const commandText = comandosData[subbotID][fileSha].trim();
+      const parts = commandText.split(" ");
+      const mainCommand = parts[0].toLowerCase(); // sin prefijo
       const args = parts.slice(1);
+
+      const chatId = m.key.remoteJid;
+      const sender = m.key.participant || m.key.remoteJid;
 
       const contextInfo = m.message?.stickerMessage?.contextInfo || {};
       const quotedMsg = contextInfo.quotedMessage || null;
@@ -521,7 +510,7 @@ try {
         ...m,
         message: {
           extendedTextMessage: {
-            text: cmdText,
+            text: commandText,
             contextInfo: {
               quotedMessage: quotedMsg,
               participant: quotedParticipant,
@@ -530,8 +519,8 @@ try {
             }
           }
         },
-        body: cmdText,
-        text: cmdText,
+        body: commandText,
+        text: commandText,
         command: mainCommand,
         key: {
           ...m.key,
@@ -541,32 +530,13 @@ try {
       };
 
       await handleSubCommand(subSock, fakeMessage, mainCommand, args);
-      return; // MUY IMPORTANTE: evitar que siga el flujo para evitar doble ejecución
+      return; // ⛔️ MUY IMPORTANTE: que no ejecute el comando 2 veces
     }
   }
-
-  // === 2. LÓGICA COMANDO NORMAL ESCRITO ===
-  const messageText =
-    m.message?.conversation ||
-    m.message?.extendedTextMessage?.text ||
-    m.message?.imageMessage?.caption ||
-    m.message?.videoMessage?.caption ||
-    "";
-
-  const usedPrefix = allowedPrefixes.find(p => messageText.startsWith(p));
-  if (!usedPrefix) return;
-
-  const body = messageText.slice(usedPrefix.length).trim();
-  const command = body.split(" ")[0].toLowerCase();
-  const args = body.split(" ").slice(1);
-
-  await handleSubCommand(subSock, m, command, args);
-
 } catch (err) {
-  console.error("❌ Error ejecutando comandos normales o desde sticker:", err);
+  console.error("❌ Error ejecutando comando desde sticker:", err);
 }
-// === FIN LÓGICA COMANDOS DESDE STICKER (SUBBOT) ===
-      
+// === FIN LÓGICA STICKER ===
       // === INICIO LÓGICA PRIVADO AUTORIZADO ===
       if (!isGroup) {
         const isFromSelf = m.key.fromMe;
