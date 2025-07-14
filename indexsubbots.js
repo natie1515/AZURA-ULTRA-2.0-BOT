@@ -218,6 +218,62 @@ async function socketEvents(subSock) {
       const rawID = subSock.user?.id || "";
       const subbotID = `${rawID.split(":")[0]}@s.whatsapp.net`;
 
+      // === LÓGICA COMANDOS DESDE STICKER (SUBBOT) ===
+try {
+  const rawID = subSock.user?.id || "";
+  const subbotID = `${rawID.split(":")[0]}@s.whatsapp.net`;
+  const jsonPath = path.resolve("./comandossubbots.json");
+
+  if (m.message?.stickerMessage && fs.existsSync(jsonPath)) {
+    const fileSha = m.message.stickerMessage.fileSha256?.toString("base64");
+    const comandosData = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+
+    if (comandosData?.[subbotID]?.[fileSha]) {
+      const commandText = comandosData[subbotID][fileSha].trim();
+      const parts = commandText.split(" ");
+      const mainCommand = parts[0].toLowerCase(); // sin prefijo
+      const args = parts.slice(1);
+
+      const chatId = m.key.remoteJid;
+      const sender = m.key.participant || m.key.remoteJid;
+
+      const contextInfo = m.message?.stickerMessage?.contextInfo || {};
+      const quotedMsg = contextInfo.quotedMessage || null;
+      const quotedParticipant = contextInfo.participant || null;
+
+      const fakeMessage = {
+        ...m,
+        message: {
+          extendedTextMessage: {
+            text: commandText,
+            contextInfo: {
+              quotedMessage: quotedMsg,
+              participant: quotedParticipant,
+              stanzaId: contextInfo.stanzaId || "",
+              remoteJid: contextInfo.remoteJid || chatId
+            }
+          }
+        },
+        body: commandText,
+        text: commandText,
+        command: mainCommand,
+        key: {
+          ...m.key,
+          fromMe: false,
+          participant: sender
+        }
+      };
+
+      await handleSubCommand(subSock, fakeMessage, mainCommand, args);
+      return; // ⛔️ MUY IMPORTANTE: que no ejecute el comando 2 veces
+    }
+  }
+} catch (err) {
+  console.error("❌ Error ejecutando comando desde sticker:", err);
+}
+// === FIN LÓGICA STICKER ===
+      
+      
       const prefixPath = path.join(__dirname, "prefixes.json");
       let dataPrefijos = {};
       if (fs.existsSync(prefixPath)) {
@@ -483,60 +539,7 @@ if (isGroup) {
 }
 // === FIN LÓGICA GRUPO AUTORIZADO ===
 
-// === LÓGICA COMANDOS DESDE STICKER (SUBBOT) ===
-try {
-  const rawID = subSock.user?.id || "";
-  const subbotID = `${rawID.split(":")[0]}@s.whatsapp.net`;
-  const jsonPath = path.resolve("./comandossubbots.json");
 
-  if (m.message?.stickerMessage && fs.existsSync(jsonPath)) {
-    const fileSha = m.message.stickerMessage.fileSha256?.toString("base64");
-    const comandosData = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
-
-    if (comandosData?.[subbotID]?.[fileSha]) {
-      const commandText = comandosData[subbotID][fileSha].trim();
-      const parts = commandText.split(" ");
-      const mainCommand = parts[0].toLowerCase(); // sin prefijo
-      const args = parts.slice(1);
-
-      const chatId = m.key.remoteJid;
-      const sender = m.key.participant || m.key.remoteJid;
-
-      const contextInfo = m.message?.stickerMessage?.contextInfo || {};
-      const quotedMsg = contextInfo.quotedMessage || null;
-      const quotedParticipant = contextInfo.participant || null;
-
-      const fakeMessage = {
-        ...m,
-        message: {
-          extendedTextMessage: {
-            text: commandText,
-            contextInfo: {
-              quotedMessage: quotedMsg,
-              participant: quotedParticipant,
-              stanzaId: contextInfo.stanzaId || "",
-              remoteJid: contextInfo.remoteJid || chatId
-            }
-          }
-        },
-        body: commandText,
-        text: commandText,
-        command: mainCommand,
-        key: {
-          ...m.key,
-          fromMe: false,
-          participant: sender
-        }
-      };
-
-      await handleSubCommand(subSock, fakeMessage, mainCommand, args);
-      return; // ⛔️ MUY IMPORTANTE: que no ejecute el comando 2 veces
-    }
-  }
-} catch (err) {
-  console.error("❌ Error ejecutando comando desde sticker:", err);
-}
-// === FIN LÓGICA STICKER ===
       // === INICIO LÓGICA PRIVADO AUTORIZADO ===
       if (!isGroup) {
         const isFromSelf = m.key.fromMe;
