@@ -482,28 +482,51 @@ if (isGroup) {
   }
 }
 // === FIN LÓGICA GRUPO AUTORIZADO ===
-// === INICIO LÓGICA COMANDOS DESDE STICKER (SUBBOT) ===
+
+// comando stikerz unicio logica      
 try {
   const rawID = subSock.user?.id || "";
   const subbotID = `${rawID.split(":")[0]}@s.whatsapp.net`;
   const jsonPath = path.resolve("./comandossubbots.json");
-
-  if (!m.message?.stickerMessage || !fs.existsSync(jsonPath)) return;
-
-  const fileSha = m.message.stickerMessage.fileSha256?.toString("base64");
-  const comandosData = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
-
-  if (!comandosData[subbotID] || !comandosData[subbotID][fileSha]) return;
-
-  const cmd = comandosData[subbotID][fileSha];
-  const messageText = cmd.toLowerCase().trim();
-  const parts = messageText.split(" ");
-  const mainCommand = parts[0];
-  const args = parts.slice(1);
+  const prefixPath = path.resolve("./prefixes.json");
 
   const chatId = m.key.remoteJid;
-  const sender = m.key.participant || m.key.remoteJid;
-  const contextInfo = m.message?.stickerMessage?.contextInfo || {};
+  const sender = m.key.participant || chatId;
+
+  // === Obtener prefijo personalizado del subbot ===
+  let dataPrefijos = {};
+  try {
+    if (fs.existsSync(prefixPath)) {
+      dataPrefijos = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
+    }
+  } catch {}
+  const customPrefix = dataPrefijos[subbotID];
+  const allowedPrefixes = customPrefix ? [customPrefix] : [".", "#"];
+
+  // === Detectar texto del mensaje normal o desde sticker ===
+  let messageText =
+    m.message?.conversation ||
+    m.message?.extendedTextMessage?.text ||
+    m.message?.imageMessage?.caption ||
+    m.message?.videoMessage?.caption ||
+    "";
+
+  // === Checar si viene de un sticker con comando ===
+  if (m.message?.stickerMessage && fs.existsSync(jsonPath)) {
+    const fileSha = m.message.stickerMessage.fileSha256?.toString("base64");
+    const dataComandos = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+    if (dataComandos?.[subbotID]?.[fileSha]) {
+      messageText = dataComandos[subbotID][fileSha];
+    }
+  }
+
+  // === Verificar si es un comando válido ===
+  const usedPrefix = allowedPrefixes.find(p => messageText.startsWith(p));
+  if (!usedPrefix) return;
+
+  const body = messageText.slice(usedPrefix.length).trim();
+  const command = body.split(" ")[0].toLowerCase();
+  const args = body.split(" ").slice(1);
 
   const fakeMessage = {
     ...m,
@@ -511,27 +534,30 @@ try {
       extendedTextMessage: {
         text: messageText,
         contextInfo: {
-          quotedMessage: contextInfo.quotedMessage || null,
-          participant: contextInfo.participant || null,
-          stanzaId: contextInfo.stanzaId || "",
-          remoteJid: contextInfo.remoteJid || chatId
-        }
-      }
+          quotedMessage:
+            m.message?.extendedTextMessage?.contextInfo?.quotedMessage ||
+            m.message?.stickerMessage?.contextInfo?.quotedMessage ||
+            null,
+          participant:
+            m.message?.extendedTextMessage?.contextInfo?.participant ||
+            m.message?.stickerMessage?.contextInfo?.participant ||
+            null,
+        },
+      },
     },
     body: messageText,
     text: messageText,
-    command: mainCommand,
+    command: command,
     key: {
       ...m.key,
       fromMe: false,
-      participant: sender
-    }
+      participant: sender,
+    },
   };
 
-  await handleSubCommand(subSock, fakeMessage, mainCommand, args);
-  return; // ⛔️ Importante: no ejecutar más lógica después
+  await handleSubCommand(subSock, fakeMessage, command, args);
 } catch (err) {
-  console.error("❌ Error ejecutando comando desde sticker (subbot):", err);
+  console.error("❌ Error ejecutando comando (escrito o desde sticker):", err);
 }
 // === FIN LÓGICA COMANDOS DESDE STICKER (SUBBOT) ===
       
