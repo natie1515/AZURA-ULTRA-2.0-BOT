@@ -345,6 +345,76 @@ if (!isGroup && !isFromSelf) {
   }
 }
       //fin de la logica de bloqueo de arabe
+
+// === INICIO BLOQUEO DE MENSAJES DE USUARIOS MUTEADOS (SUBBOTS) ===
+try {
+  const chatId = m.key.remoteJid;
+  const isGroup = chatId.endsWith("@g.us");
+
+  if (isGroup) {
+    const senderId = m.key.participant || m.key.remoteJid;
+    const mutePath = "./mutesubbots.json";
+    const muteData = fs.existsSync(mutePath) ? JSON.parse(fs.readFileSync(mutePath)) : {};
+    const muteList = muteData[chatId] || [];
+
+    if (muteList.includes(senderId)) {
+      global._muteCounter = global._muteCounter || {};
+      const key = `${chatId}:${senderId}`;
+      global._muteCounter[key] = (global._muteCounter[key] || 0) + 1;
+
+      const count = global._muteCounter[key];
+
+      if (count === 8) {
+        await subSock.sendMessage(chatId, {
+          text: `⚠️ @${senderId.split("@")[0]} estás *muteado*.\nSigue enviando mensajes y podrías ser eliminado.`,
+          mentions: [senderId]
+        });
+      }
+
+      if (count === 13) {
+        await subSock.sendMessage(chatId, {
+          text: `⛔ @${senderId.split("@")[0]} estás al *límite*.\nSi envías *otro mensaje*, serás eliminado del grupo.`,
+          mentions: [senderId]
+        });
+      }
+
+      if (count >= 15) {
+        const metadata = await subSock.groupMetadata(chatId);
+        const user = metadata.participants.find(p => p.id === senderId);
+        const isAdmin = user?.admin === 'admin' || user?.admin === 'superadmin';
+
+        if (!isAdmin) {
+          await subSock.groupParticipantsUpdate(chatId, [senderId], "remove");
+          await subSock.sendMessage(chatId, {
+            text: `❌ @${senderId.split("@")[0]} fue eliminado por ignorar el mute.`,
+            mentions: [senderId]
+          });
+          delete global._muteCounter[key];
+        } else {
+          await subSock.sendMessage(chatId, {
+            text: `🔇 @${senderId.split("@")[0]} es administrador y no se puede eliminar.`,
+            mentions: [senderId]
+          });
+        }
+      }
+
+      // eliminar mensaje del usuario muteado
+      await subSock.sendMessage(chatId, {
+        delete: {
+          remoteJid: chatId,
+          fromMe: false,
+          id: m.key.id,
+          participant: senderId
+        }
+      });
+
+      return; // ⛔ Detener aquí si está muteado
+    }
+  }
+} catch (err) {
+  console.error("❌ Error en lógica de muteo subbots:", err);
+}
+// === FIN BLOQUEO DE MENSAJES DE USUARIOS MUTEADOS (SUBBOTS) ===
       
       /* ========== GUARDADO ANTIDELETE (SUB-BOT) ========== */
       try {
