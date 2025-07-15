@@ -11,6 +11,15 @@ const {
 } = require("@whiskeysockets/baileys");
 const { Boom } = require("@hapi/boom");
 
+// Manejo de errores global para evitar que el subbot se detenga
+process.on("uncaughtException", (err) => {
+  console.error("\x1b[31m%s\x1b[0m", "⚠️ Error no manejado:", err);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("\x1b[31m%s\x1b[0m", "🚨 Promesa rechazada sin manejar:", promise, "razón:", reason);
+});
+
 const subBots = [];
 const reconnectionAttempts = new Map();
 
