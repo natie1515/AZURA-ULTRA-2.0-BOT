@@ -2,7 +2,6 @@ const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 const Crypto = require("crypto");
-const ffmpeg = require("fluent-ffmpeg");
 const webp = require("node-webpmux");
 
 const tempFolder = path.join(__dirname, "../tmp/");
@@ -47,15 +46,15 @@ const handler = async (msg, { conn, args, text }) => {
     const fechaCreacion = `📅 ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()} 🕒 ${now.getHours()}:${now.getMinutes()}`;
 
     const metadata = {
-      packname: `🎭 Emoji Animado de: ${senderName}`,
+      packname: `✨ Emoji Animado: ${senderName}`,
       author: `🤖 Azura Ultra\n🛠️ Russell xz 💻\n${fechaCreacion}`,
       categories: [emoji]
     };
 
-    const final = await writeExifImg(buffer, metadata);
+    const stickerBuffer = await writeExifDirect(buffer, metadata);
 
     await conn.sendMessage(msg.key.remoteJid, {
-      sticker: { url: final }
+      sticker: { url: stickerBuffer }
     }, { quoted: msg });
 
     await conn.sendMessage(msg.key.remoteJid, {
@@ -75,45 +74,11 @@ const handler = async (msg, { conn, args, text }) => {
 };
 
 handler.command = ["aniemoji"];
-handler.tags = ["sticker", "emoji"];
-handler.help = ["aniemoji 😎"];
 module.exports = handler;
 
-/* === FUNCIONES DE CONVERSIÓN DE STICKERS CON EXIF === */
+/* === FUNCIONES DE EXIF DIRECTO === */
 
-function randomFileName(ext) {
-  return `${Crypto.randomBytes(6).readUIntLE(0, 6).toString(36)}.${ext}`;
-}
-
-async function imageToWebp(media) {
-  const tmpIn = path.join(tempFolder, randomFileName("jpg"));
-  const tmpOut = path.join(tempFolder, randomFileName("webp"));
-  fs.writeFileSync(tmpIn, media);
-
-  await new Promise((resolve, reject) => {
-    ffmpeg(tmpIn)
-      .on("error", reject)
-      .on("end", resolve)
-      .addOutputOptions([
-        "-vcodec", "libwebp",
-        "-vf", "scale='min(320,iw)':min'(320,ih)':force_original_aspect_ratio=decrease,fps=15,pad=320:320:-1:-1:color=white@0.0,split[a][b];[a]palettegen=reserve_transparent=on:transparency_color=ffffff[p];[b][p]paletteuse"
-      ])
-      .toFormat("webp")
-      .save(tmpOut);
-  });
-
-  const buff = fs.readFileSync(tmpOut);
-  fs.unlinkSync(tmpIn);
-  fs.unlinkSync(tmpOut);
-  return buff;
-}
-
-async function writeExifImg(media, metadata) {
-  const wMedia = await imageToWebp(media);
-  return await addExif(wMedia, metadata);
-}
-
-async function addExif(webpBuffer, metadata) {
+async function writeExifDirect(webpBuffer, metadata) {
   const tmpIn = path.join(tempFolder, randomFileName("webp"));
   const tmpOut = path.join(tempFolder, randomFileName("webp"));
   fs.writeFileSync(tmpIn, webpBuffer);
@@ -133,7 +98,6 @@ async function addExif(webpBuffer, metadata) {
     0x00, 0x00, 0x16, 0x00,
     0x00, 0x00
   ]);
-
   const jsonBuff = Buffer.from(JSON.stringify(json), "utf-8");
   const exif = Buffer.concat([exifAttr, jsonBuff]);
   exif.writeUIntLE(jsonBuff.length, 14, 4);
@@ -144,4 +108,8 @@ async function addExif(webpBuffer, metadata) {
   await img.save(tmpOut);
   fs.unlinkSync(tmpIn);
   return tmpOut;
+}
+
+function randomFileName(ext) {
+  return `${Crypto.randomBytes(6).readUIntLE(0, 6).toString(36)}.${ext}`;
 }
