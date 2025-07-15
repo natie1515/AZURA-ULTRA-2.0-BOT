@@ -78,6 +78,7 @@ const handler = async (msg, { conn }) => {
 ┃ ✦ ${usedPrefix}𝘬𝘪𝘴𝘴 / ${usedPrefix}𝘴𝘭𝘢𝘱
 ┃ ✦ ${usedPrefix}𝘵𝘰𝘱𝘬𝘪𝘴𝘴 / ${usedPrefix}𝘵𝘰𝘱𝘴𝘭𝘢𝘱
 ┃ ✦ ${usedPrefix}𝘷𝘦𝘳𝘥𝘢𝘥 / ${usedPrefix}𝘳𝘦𝘵𝘰
+┃ ✦ ${usedPrefix}mixemoji / ${usedPrefix}aniemoji
 ┗━━━━━━━━━━━━━
 
 ┏━━⚙️ 𝗖𝗼𝗻𝗳𝗶𝗴𝘀 & 𝗗𝘂𝗲ñ𝗼
@@ -152,6 +153,7 @@ const handler = async (msg, { conn }) => {
 ⟢ ${usedPrefix}antidelete on o off
 ⟢ ${usedPrefix}addco (agrega comando a stickerz)
 ⟢ ${usedPrefix}delco (elimina comando)
+⟢ ${usedPrefix}delete
 
 〔 Comandos De Juegos 〕
 ⟢ ${usedPrefix}verdad
@@ -161,6 +163,8 @@ const handler = async (msg, { conn }) => {
 ⟢ ${usedPrefix}topkiss
 ⟢ ${usedPrefix}slap
 ⟢ ${usedPrefix}topslap
+⟢ ${usedPrefix}mixemoji
+⟢ ${usedPrefix}aniemoji
 
 〔 Configuración & Dueño 〕
 ▣ ${usedPrefix}antideletepri on o off
