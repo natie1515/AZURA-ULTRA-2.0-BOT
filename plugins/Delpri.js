@@ -15,15 +15,19 @@ const handler = async (msg, { conn }) => {
     react: { text: "🧹", key: msg.key }
   });
 
-  const chats = await conn.chats.all();
   let eliminados = 0;
 
-  for (const chat of chats) {
-    const jid = chat.id;
-    if (!jid.endsWith("@g.us")) { // Solo chats privados
-      await conn.chatModify({ clear: { messages: [{ id: chat.lastMessage?.key?.id, fromMe: true }] } }, jid);
-      await conn.chatModify({ delete: true }, jid);
-      eliminados++;
+  // Obtener todos los chats desde la store del socket
+  const chats = Object.keys(conn.chats || conn.store.chats);
+
+  for (const jid of chats) {
+    if (!jid.endsWith("@g.us")) { // Solo privados
+      try {
+        await conn.chatModify({ delete: true }, jid);
+        eliminados++;
+      } catch (err) {
+        console.log("❌ Error al eliminar chat:", jid, err);
+      }
     }
   }
 
