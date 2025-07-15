@@ -1,145 +1,140 @@
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
-const { tmpdir } = require('os');
-const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
-const Crypto = require('crypto');
+const fs = require("fs");
+const path = require("path");
+const fetch = require("node-fetch");
+const Crypto = require("crypto");
+const { tmpdir } = require("os");
+const ffmpeg = require("fluent-ffmpeg");
+const webp = require("node-webpmux");
 
-const tempFolder = path.join(__dirname, '../tmp/');
+const tempFolder = path.join(__dirname, "../tmp/");
 if (!fs.existsSync(tempFolder)) fs.mkdirSync(tempFolder, { recursive: true });
 
-const handler = async (msg, { conn, args, usedPrefix, command }) => {
-    const rawID = conn.user?.id || "";
-    const subbotID = rawID.split(":")[0] + "@s.whatsapp.net";
+const handler = async (msg, { conn, args, text }) => {
+  const chatId = msg.key.remoteJid;
+  const senderName = msg.pushName || "Usuario Desconocido";
 
-    // Obtener prefijo del subbot
-    const prefixPath = path.resolve("prefixes.json");
-    let prefixes = {};
-    if (fs.existsSync(prefixPath)) {
-        prefixes = JSON.parse(fs.readFileSync(prefixPath, "utf-8"));
+  if (!text.includes("+")) {
+    return conn.sendMessage(chatId, {
+      text: "❌ *Formato incorrecto.* Usa: .mixemoji 😳+😩",
+    }, { quoted: msg });
+  }
+
+  const [emo1, emo2] = text.split("+").map(e => e.trim());
+  if (!emo1 || !emo2) {
+    return conn.sendMessage(chatId, {
+      text: "⚠️ *Debes dar dos emojis para combinar.*\nEjemplo: .mixemoji 😳+😩",
+    }, { quoted: msg });
+  }
+
+  try {
+    await conn.sendMessage(chatId, { react: { text: "🔄", key: msg.key } });
+
+    const url = `https://api.neoxr.eu/api/emoji?q=${encodeURIComponent(emo1 + "_" + emo2)}&apikey=russellxz`;
+    const res = await fetch(url);
+    const json = await res.json();
+
+    if (!json.status || !json.data?.url) {
+      return conn.sendMessage(chatId, {
+        text: "❌ *No se pudo combinar esos emojis.*",
+      }, { quoted: msg });
     }
-    const usedPrefix = prefixes[subbotID] || ".";
 
-    try {
-        if (!args[0] || !args[0].includes('+')) {
-            return await conn.sendMessage(msg.key.remoteJid, {
-                text: `✳️ *Uso correcto:* ${usedPrefix}${command} <emoji1>+<emoji2>\n\n📌 *Ejemplo:* ${usedPrefix}${command} 😊+😡\n📌 *Ejemplo:* ${usedPrefix}${command} 😘+🥰`
-            }, { quoted: msg });
-        }
+    const response = await fetch(json.data.url);
+    const imageBuffer = await response.buffer();
 
-        await conn.sendMessage(msg.key.remoteJid, {
-            react: { text: '⏳', key: msg.key }
-        });
+    const now = new Date();
+    const fechaCreacion = `📅 ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()} 🕒 ${now.getHours()}:${now.getMinutes()}`;
 
-        const [emoji1, emoji2] = args[0].split('+');
-        const encodedEmojis = encodeURIComponent(`${emoji1}_${emoji2}`);
-        const apiUrl = `https://api.neoxr.eu/api/emoji?q=${encodedEmojis}&apikey=russellxz`;
+    const metadata = {
+      packname: `✨ Emoji Mix by ${senderName} ✨`,
+      author: `🤖 Azura Ultra Bot\n🛠️ Dev: 𝙍𝙪𝙨𝙨𝙚𝙡𝙡 xz 💻\n${fechaCreacion}`,
+      categories: [emo1, emo2],
+    };
 
-        const response = await axios.get(apiUrl);
-        if (!response.data.status || !response.data.data.url) {
-            throw new Error('No se pudo generar la combinación de emojis');
-        }
+    const stickerPath = await writeExifImg(imageBuffer, metadata);
 
-        const imageUrl = response.data.data.url;
-        const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-        const imageBuffer = Buffer.from(imageResponse.data, 'binary');
+    await conn.sendMessage(chatId, {
+      sticker: { url: stickerPath },
+    }, { quoted: msg });
 
-        // Convertir a sticker
-        const tmpIn = path.join(tempFolder, `${Crypto.randomBytes(6).readUIntLE(0, 6).toString(36)}.png`);
-        fs.writeFileSync(tmpIn, imageBuffer);
+    await conn.sendMessage(chatId, { react: { text: "✅", key: msg.key } });
 
-        const metadata = {
-            packname: `✨ Mezcla de Emojis ✨`,
-            author: `🤖 ${conn.user.name || 'Azura Ultra 2.0 Subbot'}`,
-            categories: [emoji1, emoji2]
-        };
-
-        const sticker = await writeExifImg(imageBuffer, metadata);
-
-        await conn.sendMessage(msg.key.remoteJid, {
-            sticker: { url: sticker }
-        }, { quoted: msg });
-
-        fs.unlinkSync(tmpIn);
-        if (fs.existsSync(sticker)) fs.unlinkSync(sticker);
-
-        await conn.sendMessage(msg.key.remoteJid, {
-            react: { text: '✅', key: msg.key }
-        });
-
-    } catch (err) {
-        console.error('❌ Error en mixemoji:', err);
-        await conn.sendMessage(msg.key.remoteJid, {
-            text: `❌ *Error:* ${err.message || 'No se pudo crear el sticker de emojis combinados'}`
-        }, { quoted: msg });
-
-        await conn.sendMessage(msg.key.remoteJid, {
-            react: { text: '❌', key: msg.key }
-        });
-    }
+  } catch (err) {
+    console.error("❌ Error en mixemoji:", err);
+    await conn.sendMessage(chatId, {
+      text: "❌ *Ocurrió un error al procesar los emojis.*",
+    }, { quoted: msg });
+    await conn.sendMessage(chatId, { react: { text: "❌", key: msg.key } });
+  }
 };
 
-// Funciones auxiliares para stickers (las mismas que en el comando 's')
-async function writeExifImg(media, metadata) {
-    const wMedia = await imageToWebp(media);
-    return await addExif(wMedia, metadata);
+handler.command = ["mixemoji"];
+handler.tags = ["sticker"];
+handler.help = ["mixemoji 😳+😩"];
+module.exports = handler;
+
+/* === FUNCIONES DE STICKER CON EXIF Y CONVERSIÓN === */
+
+function randomFileName(ext) {
+  return `${Crypto.randomBytes(6).readUIntLE(0, 6).toString(36)}.${ext}`;
 }
 
 async function imageToWebp(media) {
-    const tmpIn = path.join(tempFolder, `${Crypto.randomBytes(6).readUIntLE(0, 6).toString(36)}.jpg`);
-    const tmpOut = path.join(tempFolder, `${Crypto.randomBytes(6).readUIntLE(0, 6).toString(36)}.webp`);
-    fs.writeFileSync(tmpIn, media);
+  const tmpIn = path.join(tempFolder, randomFileName("jpg"));
+  const tmpOut = path.join(tempFolder, randomFileName("webp"));
+  fs.writeFileSync(tmpIn, media);
 
-    await new Promise((resolve, reject) => {
-        ffmpeg(tmpIn)
-            .on('error', reject)
-            .on('end', resolve)
-            .addOutputOptions([
-                "-vcodec", "libwebp",
-                "-vf", "scale='min(320,iw)':min'(320,ih)':force_original_aspect_ratio=decrease,fps=15,pad=320:320:-1:-1:color=white@0.0,split[a][b];[a]palettegen=reserve_transparent=on:transparency_color=ffffff[p];[b][p]paletteuse"
-            ])
-            .toFormat('webp')
-            .save(tmpOut);
-    });
+  await new Promise((resolve, reject) => {
+    ffmpeg(tmpIn)
+      .on("error", reject)
+      .on("end", resolve)
+      .addOutputOptions([
+        "-vcodec", "libwebp",
+        "-vf", "scale='min(320,iw)':min'(320,ih)':force_original_aspect_ratio=decrease,fps=15,pad=320:320:-1:-1:color=white@0.0,split[a][b];[a]palettegen=reserve_transparent=on:transparency_color=ffffff[p];[b][p]paletteuse"
+      ])
+      .toFormat("webp")
+      .save(tmpOut);
+  });
 
-    const buff = fs.readFileSync(tmpOut);
-    fs.unlinkSync(tmpIn);
-    fs.unlinkSync(tmpOut);
-    return buff;
+  const buff = fs.readFileSync(tmpOut);
+  fs.unlinkSync(tmpIn);
+  fs.unlinkSync(tmpOut);
+  return buff;
 }
 
 async function addExif(webpBuffer, metadata) {
-    const tmpIn = path.join(tempFolder, `${Crypto.randomBytes(6).readUIntLE(0, 6).toString(36)}.webp`);
-    const tmpOut = path.join(tempFolder, `${Crypto.randomBytes(6).readUIntLE(0, 6).toString(36)}.webp`);
-    fs.writeFileSync(tmpIn, webpBuffer);
+  const tmpIn = path.join(tempFolder, randomFileName("webp"));
+  const tmpOut = path.join(tempFolder, randomFileName("webp"));
+  fs.writeFileSync(tmpIn, webpBuffer);
 
-    const json = {
-        "sticker-pack-id": "emoji-mix-pack",
-        "sticker-pack-name": metadata.packname,
-        "sticker-pack-publisher": metadata.author,
-        "emojis": metadata.categories || [""]
-    };
+  const json = {
+    "sticker-pack-id": "azura-ultra-mixemoji",
+    "sticker-pack-name": metadata.packname,
+    "sticker-pack-publisher": metadata.author,
+    "emojis": metadata.categories || [""],
+  };
 
-    const exifAttr = Buffer.from([
-        0x49, 0x49, 0x2A, 0x00,
-        0x08, 0x00, 0x00, 0x00,
-        0x01, 0x00, 0x41, 0x57,
-        0x07, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x16, 0x00,
-        0x00, 0x00
-    ]);
-    const jsonBuff = Buffer.from(JSON.stringify(json), "utf-8");
-    const exif = Buffer.concat([exifAttr, jsonBuff]);
-    exif.writeUIntLE(jsonBuff.length, 14, 4);
+  const exifAttr = Buffer.from([
+    0x49, 0x49, 0x2A, 0x00,
+    0x08, 0x00, 0x00, 0x00,
+    0x01, 0x00, 0x41, 0x57,
+    0x07, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x16, 0x00,
+    0x00, 0x00,
+  ]);
+  const jsonBuff = Buffer.from(JSON.stringify(json), "utf-8");
+  const exif = Buffer.concat([exifAttr, jsonBuff]);
+  exif.writeUIntLE(jsonBuff.length, 14, 4);
 
-    const img = new webp.Image();
-    await img.load(tmpIn);
-    img.exif = exif;
-    await img.save(tmpOut);
-    fs.unlinkSync(tmpIn);
-    return tmpOut;
+  const img = new webp.Image();
+  await img.load(tmpIn);
+  img.exif = exif;
+  await img.save(tmpOut);
+  fs.unlinkSync(tmpIn);
+  return tmpOut;
 }
 
-handler.command = ['mixemoji', 'emojimix', 'mezclaemoji'];
-handler.help = ['mixemoji <emoji1+emoji2>'];
-module.exports = handler;
+async function writeExifImg(media, metadata) {
+  const wMedia = await imageToWebp(media);
+  return await addExif(wMedia, metadata);
+}
