@@ -34,10 +34,13 @@ const handler = async (msg, { conn }) => {
       const fullJid = `${jid}@s.whatsapp.net`;
 
       const prefijo = dataPrefijos[fullJid] || ".";
-      let name = "Desconocido";
-      try {
-        name = await conn.fetchName(fullJid);
-      } catch {}
+
+      // Obtener nombre de contacto usando pushName si está disponible
+      let name = "Usuario Desconocido";
+      const contacto = await conn.onWhatsApp(fullJid).catch(() => null);
+      if (contacto && contacto.length > 0 && contacto[0]?.notify) {
+        name = contacto[0].notify;
+      }
 
       const sensurado = `+${jid.slice(0, 3)}*****${jid.slice(-2)}`;
 
