@@ -28,29 +28,18 @@ const handler = async (msg, { conn }) => {
   const maxSubbots = 200;
   const disponibles = maxSubbots - total;
 
-  const lista = await Promise.all(
-    subDirs.map(async (dir, i) => {
-      const jid = dir.split("@")[0];
-      const fullJid = `${jid}@s.whatsapp.net`;
+  const lista = subDirs.map((dir, i) => {
+    const jid = dir.split("@")[0];
+    const fullJid = `${jid}@s.whatsapp.net`;
 
-      const prefijo = dataPrefijos[fullJid] || ".";
+    const prefijo = dataPrefijos[fullJid] || ".";
+    const sensurado = `+${jid.slice(0, 3)}*****${jid.slice(-2)}`;
 
-      // Obtener nombre de contacto usando pushName si está disponible
-      let name = "Usuario Desconocido";
-      const contacto = await conn.onWhatsApp(fullJid).catch(() => null);
-      if (contacto && contacto.length > 0 && contacto[0]?.notify) {
-        name = contacto[0].notify;
-      }
-
-      const sensurado = `+${jid.slice(0, 3)}*****${jid.slice(-2)}`;
-
-      return `╭➤ *Subbot ${i + 1}*
+    return `╭➤ *Subbot ${i + 1}*
 │ Número: ${sensurado}
-│ Nombre: ${name}
 │ Prefijo: *${prefijo}*
 ╰───────────────`;
-    })
-  );
+  });
 
   const menu = `╭━〔 *AZURA ULTRA 2.0* 〕━⬣
 │ 🤖 Total conectados: *${total}/${maxSubbots}*
