@@ -34,9 +34,11 @@ const handler = async (msg, { conn }) => {
       const fullJid = `${jid}@s.whatsapp.net`;
 
       const prefijo = dataPrefijos[fullJid] || ".";
-      const name = await conn.getName(fullJid).catch(() => "Desconocido");
+      let name = "Desconocido";
+      try {
+        name = await conn.fetchName(fullJid);
+      } catch {}
 
-      // Sensurar número
       const sensurado = `+${jid.slice(0, 3)}*****${jid.slice(-2)}`;
 
       return `╭➤ *Subbot ${i + 1}*
